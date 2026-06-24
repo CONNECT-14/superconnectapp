@@ -168,7 +168,7 @@ export default function PostCard({ post, onDelete }) {
   const fetchComments = async () => {
     const { data } = await supabase
       .from("comments")
-      .select(`*, profiles(name)`)
+      .select(`*, profiles(name, avatar_url)`)
       .eq("post_id", post.id)
       .order("created_at", { ascending: false });
 
@@ -222,7 +222,13 @@ export default function PostCard({ post, onDelete }) {
       {/* HEADER */}
       <div className="post-header">
         <div className="user-info">
-          <div className="avatar">👤</div>
+          <div className="avatar" style={{ overflow: 'hidden' }}>
+            {post.profiles?.avatar_url ? (
+              <img src={post.profiles.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              "👤"
+            )}
+          </div>
           <span className="username">{displayName}</span>
         </div>
 
@@ -278,7 +284,14 @@ export default function PostCard({ post, onDelete }) {
           <div className="comments-container">
             {comments.slice(0, 4).map((c) => (
               <div key={c.id} className="comment-item">
-                <span className="comment-user">
+                <span className="comment-user" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  {c.profiles?.avatar_url ? (
+                    <img src={c.profiles.avatar_url} alt="avatar" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--border)', color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold' }}>
+                      {c.profiles?.name ? c.profiles.name.charAt(0).toUpperCase() : "U"}
+                    </div>
+                  )}
                   {c.profiles?.name || "User"}
                 </span>
                 : {c.content}

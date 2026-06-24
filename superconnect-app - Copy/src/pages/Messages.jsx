@@ -256,7 +256,7 @@ export default function Messages() {
 
     const { data: profiles, error } = await supabase
       .from("profiles")
-      .select("id, name")
+      .select("id, name, avatar_url")
       .in("id", uniqueIds);
 
     if (error) {
@@ -331,7 +331,14 @@ export default function Messages() {
                       fetchMessages(u.id);
                     }}
                   >
-                    👤 {u.name || "User"}
+                    {u.avatar_url ? (
+                      <img src={u.avatar_url} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                        {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+                      </div>
+                    )}
+                    {u.name || "User"}
                   </div>
                 ))
               )}
@@ -343,7 +350,14 @@ export default function Messages() {
             {selectedUser ? (
               <>
                 <div className="chat-header">
-                  <h3>👤 {selectedUser.name}</h3>
+                  {selectedUser.avatar_url ? (
+                    <img src={selectedUser.avatar_url} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>
+                      {selectedUser.name ? selectedUser.name.charAt(0).toUpperCase() : "U"}
+                    </div>
+                  )}
+                  <h3>{selectedUser.name}</h3>
                 </div>
 
                 <div className="messages-area">

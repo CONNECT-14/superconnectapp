@@ -193,10 +193,68 @@ const styles = `
   .tag-idea { background: #e3ebf3; color: #406d96; }
   .tag-in-progress { background: #fdf2d0; color: #9c6c06; }
   .tag-live { background: #dcf2e3; color: #2e7a46; }
+
+  /* ── User Profile Area ── */
+  .profile-info-section {
+    margin-bottom: 48px;
+  }
+  .profile-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .profile-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .profile-details h3 {
+    font-size: 1.5rem;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .profile-email {
+    font-size: 0.95rem;
+    color: var(--ink-muted);
+  }
+  .profile-meta {
+    font-size: 0.9rem;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 `;
 
 export default function Profile() {
   const [user, setUser] = useState(null);
+  const [profileData, setProfileData] = useState(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editAge, setEditAge] = useState("");
+  const [editOccupation, setEditOccupation] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
@@ -219,7 +277,21 @@ export default function Profile() {
       const user = session?.user;
       
       setUser(user);
-      if (user) await fetchProjects(user.id);
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        if (profile) {
+          setProfileData(profile);
+          setEditName(profile.name || "");
+          setEditAge(profile.age || "");
+          setEditOccupation(profile.occupation || "");
+        }
+        
+        await fetchProjects(user.id);
+      }
     } catch (err) {
       console.error("Error fetching user:", err.message);
     } finally {
@@ -238,11 +310,64 @@ export default function Profile() {
     else setProjects(data || []);
   };
 
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setSavingProfile(true);
+
+    let avatarUrl = profileData?.avatar_url || null;
+
+    if (avatarFile) {
+      const fileName = `avatar-${Date.now()}-${avatarFile.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, avatarFile);
+
+      if (uploadError) {
+        alert("Avatar upload failed: " + uploadError.message);
+        setSavingProfile(false);
+        return;
+      }
+      
+      const { data } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(fileName);
+      avatarUrl = data.publicUrl;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        name: editName,
+        age: editAge ? parseInt(editAge) : null,
+        occupation: editOccupation,
+        avatar_url: avatarUrl
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      alert("Error saving profile: " + error.message);
+    } else {
+      setProfileData({ ...profileData, name: editName, age: editAge, occupation: editOccupation, avatar_url: avatarUrl });
+      setIsEditingProfile(false);
+      setAvatarFile(null);
+      setAvatarPreview(null);
+    }
+    setSavingProfile(false);
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImage(file);
       setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
     }
   };
 
@@ -324,6 +449,59 @@ export default function Profile() {
           <div className="profile-header">
             <h2>My Profile</h2>
             <div className="dot" />
+          </div>
+
+          {/* USER PROFILE SECTION */}
+          <div className="profile-info-section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <p className="section-label" style={{ marginBottom: 0 }}>User Info</p>
+              {!isEditingProfile && (
+                <button 
+                  onClick={() => setIsEditingProfile(true)}
+                  style={{ background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '4px 12px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}
+                >
+                  Edit Profile
+                </button>
+              )}
+            </div>
+            
+            <div className="profile-card">
+               <div className="profile-avatar" style={{ overflow: 'hidden' }}>
+                 {(avatarPreview || profileData?.avatar_url) ? (
+                   <img src={avatarPreview || profileData?.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                 ) : (
+                   profileData?.name ? profileData.name.charAt(0).toUpperCase() : "U"
+                 )}
+               </div>
+               
+               {isEditingProfile ? (
+                 <div className="profile-details" style={{ flex: 1 }}>
+                   <label className="file-label" style={{ marginBottom: '12px', alignSelf: 'flex-start' }}>
+                     + Change Avatar
+                     <input type="file" accept="image/*" className="file-input-hidden" onChange={handleAvatarChange} />
+                   </label>
+                   <input className="form-field" placeholder="Name" value={editName} onChange={(e) => setEditName(e.target.value)} style={{ marginBottom: '8px' }} />
+                   <input className="form-field" type="number" placeholder="Age" value={editAge} onChange={(e) => setEditAge(e.target.value)} style={{ marginBottom: '8px' }} />
+                   <input className="form-field" placeholder="Occupation" value={editOccupation} onChange={(e) => setEditOccupation(e.target.value)} style={{ marginBottom: '12px' }} />
+                   
+                   <div style={{ display: 'flex', gap: '8px' }}>
+                     <button className="btn-create" onClick={handleSaveProfile} disabled={savingProfile}>
+                       {savingProfile ? "Saving..." : "Save"}
+                     </button>
+                     <button onClick={() => setIsEditingProfile(false)} style={{ background: 'transparent', border: '1px solid var(--border)', padding: '11px 22px', borderRadius: '7px', cursor: 'pointer' }}>
+                       Cancel
+                     </button>
+                   </div>
+                 </div>
+               ) : (
+                 <div className="profile-details">
+                   <h3>{profileData?.name || "User"}</h3>
+                   <p className="profile-email">{profileData?.email}</p>
+                   {profileData?.occupation && <p className="profile-meta">💼 {profileData.occupation}</p>}
+                   {profileData?.age && <p className="profile-meta">🎂 {profileData.age} years old</p>}
+                 </div>
+               )}
+            </div>
           </div>
 
           {/* CREATE SECTION */}

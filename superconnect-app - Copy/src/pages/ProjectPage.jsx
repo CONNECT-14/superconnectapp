@@ -273,58 +273,6 @@ const styles = `
     padding: 0;
   }
 
-  /* ── Gallery section ── */
-  .gallery-section {
-    margin-bottom: 36px;
-  }
-  .gallery-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
-  }
-  .btn-upload-photo {
-    background: transparent;
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all var(--transition);
-  }
-  .btn-upload-photo:hover {
-    background: var(--accent);
-    color: white;
-  }
-  .gallery-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
-  }
-  .gallery-item {
-    border-radius: var(--radius);
-    overflow: hidden;
-    height: 140px;
-    border: 1px solid var(--border);
-  }
-  .gallery-item img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .gallery-empty {
-    padding: 30px;
-    text-align: center;
-    color: var(--ink-muted);
-    background: var(--surface);
-    border: 1px dashed var(--border);
-    border-radius: var(--radius);
-    font-size: 0.9rem;
-  }
-
   /* ── Loading ── */
   .pp-loading {
     display: flex;
@@ -347,12 +295,11 @@ export default function ProjectPage() {
   const [msgText, setMsgText] = useState("");
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [gallery, setGallery] = useState([]);
-  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   const feedRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { init(); }, [id]);
 
   useEffect(() => {
@@ -367,7 +314,6 @@ export default function ProjectPage() {
       setUser(session?.user);
       fetchProject();
       fetchMessages();
-      fetchGallery();
     } catch(err) {
       console.error(err);
     }
@@ -382,49 +328,10 @@ export default function ProjectPage() {
   const fetchMessages = async () => {
     const { data } = await supabase
       .from("project_messages")
-      .select("*, profiles(name)")
+      .select("*, profiles(name, avatar_url)")
       .eq("project_id", id)
       .order("created_at", { ascending: true });
     setMessages(data || []);
-  };
-
-  const fetchGallery = async () => {
-    const { data } = await supabase
-      .from("project_photos")
-      .select("*")
-      .eq("project_id", id)
-      .order("created_at", { ascending: false });
-    setGallery(data || []);
-  };
-
-  const handleGalleryUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !user) return;
-
-    setUploadingGallery(true);
-    const fileName = `gallery-${Date.now()}-${file.name}`;
-    const { error: uploadError } = await supabase.storage
-      .from("project-images")
-      .upload(fileName, file);
-
-    if (uploadError) {
-      console.log(uploadError);
-      setUploadingGallery(false);
-      return;
-    }
-
-    const { data } = supabase.storage
-      .from("project-images")
-      .getPublicUrl(fileName);
-    
-    await supabase.from("project_photos").insert([{
-      project_id: id,
-      user_id: user.id,
-      image_url: data.publicUrl
-    }]);
-
-    fetchGallery();
-    setUploadingGallery(false);
   };
 
   const handleImageChange = (e) => {
@@ -491,37 +398,6 @@ export default function ProjectPage() {
                 {project.description && <p>{project.description}</p>}
               </div>
 
-              <div className="gallery-section">
-                <div className="gallery-header">
-                  <p className="section-label" style={{ marginBottom: 0 }}>Project Gallery</p>
-                  {user && project.user_id === user.id && (
-                    <label className="btn-upload-photo">
-                      {uploadingGallery ? "..." : "+ Upload Photo"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="file-input-hidden"
-                        onChange={handleGalleryUpload}
-                        disabled={uploadingGallery}
-                      />
-                    </label>
-                  )}
-                </div>
-                {gallery.length > 0 ? (
-                  <div className="gallery-grid">
-                    {gallery.map(photo => (
-                      <div key={photo.id} className="gallery-item">
-                        <img src={photo.image_url} alt="project gallery" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="gallery-empty">
-                    No photos in gallery yet.
-                  </div>
-                )}
-              </div>
-
               <p className="section-label">Community</p>
 
               <div className="community-section">
@@ -535,7 +411,14 @@ export default function ProjectPage() {
                   ) : (
                     messages.map((m) => (
                       <div key={m.id} className="message-item">
-                        <span className="message-author">
+                        <span className="message-author" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {m.profiles?.avatar_url ? (
+                            <img src={m.profiles.avatar_url} alt="avatar" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold' }}>
+                              {m.profiles?.name ? m.profiles.name.charAt(0).toUpperCase() : "U"}
+                            </div>
+                          )}
                           {m.profiles?.name || "User"}
                         </span>
                         <div className="message-bubble">

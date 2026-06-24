@@ -65,6 +65,55 @@ const styles = `
     margin: 32px 0 16px;
   }
 
+  /* ── User Profile Area ── */
+  .profile-info-section {
+    margin-bottom: 48px;
+  }
+  .profile-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    box-shadow: 0 2px 12px rgba(26,22,18,0.07);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .profile-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .profile-details h3 {
+    font-size: 1.5rem;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .profile-email {
+    font-size: 0.95rem;
+    color: var(--ink-muted);
+  }
+  .profile-meta {
+    font-size: 0.9rem;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   .project-card {
     background: var(--surface);
     border: 1.5px solid var(--border);
@@ -188,9 +237,29 @@ export default function UserProfile() {
       <div className="page-root">
         <div className="page-inner">
           <div className="page-header">
-            <h2>{userProfile?.name || "User"}</h2>
+            <h2>{userProfile?.name || "User Profile"}</h2>
             <div className="dot" />
           </div>
+
+          {!loading && userProfile && (
+            <div className="profile-info-section">
+              <div className="profile-card">
+                 <div className="profile-avatar" style={{ overflow: 'hidden' }}>
+                   {userProfile?.avatar_url ? (
+                     <img src={userProfile.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                   ) : (
+                     userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : "U"
+                   )}
+                 </div>
+                 <div className="profile-details">
+                   <h3>{userProfile?.name || "User"}</h3>
+                   {userProfile?.email && <p className="profile-email">{userProfile.email}</p>}
+                   {userProfile?.occupation && <p className="profile-meta">💼 {userProfile.occupation}</p>}
+                   {userProfile?.age && <p className="profile-meta">🎂 {userProfile.age} years old</p>}
+                 </div>
+              </div>
+            </div>
+          )}
 
           <div className="section-label">Projects</div>
 

@@ -146,7 +146,7 @@ export default function Following() {
 
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, name")
+      .select("id, name, avatar_url")
       .in("id", ids);
 
     const merged = data.map((f) => ({
@@ -216,7 +216,14 @@ export default function Following() {
                 className="list-card"
                 onClick={() => navigate(`/user/${f.following_id}`)}
               >
-                👤 {f.profiles?.name || "User"}
+                {f.profiles?.avatar_url ? (
+                  <img src={f.profiles.avatar_url} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                    {f.profiles?.name ? f.profiles.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                )}
+                {f.profiles?.name || "User"}
               </div>
             ))
           )}

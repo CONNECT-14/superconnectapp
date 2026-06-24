@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import SkeletonLoader from "../components/SkeletonLoader";
 
@@ -61,6 +62,10 @@ const styles = `
     padding: 20px 24px;
     margin-bottom: 16px;
     transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  }
+
+  .project-card.clickable {
+    cursor: pointer;
   }
 
   .project-card:hover {
@@ -148,6 +153,7 @@ export default function ProjectHub() {
   const [projects, setProjects] = useState([]);
   const [user, setUser] = useState(null); 
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     init();
@@ -175,7 +181,7 @@ export default function ProjectHub() {
       .from("projects")
       .select(`
         *,
-        profiles(name)
+        profiles(name, avatar_url)
       `)
       .order("created_at", { ascending: false });
 
@@ -195,7 +201,8 @@ export default function ProjectHub() {
     setLoading(false);
   };
 
-  const followProject = async (projectId) => {
+  const followProject = async (e, projectId) => {
+    if (e) e.stopPropagation();
     if (!user) return;
 
     const proj = projects.find((p) => p.id === projectId);
@@ -215,6 +222,12 @@ export default function ProjectHub() {
     }
   };
 
+  const handleProjectClick = (proj) => {
+    if (proj.isFollowing || proj.user_id === user?.id) {
+      navigate(`/project/${proj.id}`);
+    }
+  };
+
   return (
     <>
       <style>{styles}</style>
@@ -230,8 +243,14 @@ export default function ProjectHub() {
           ) : projects.length === 0 ? (
             <p className="empty-msg">No projects yet</p>
           ) : (
-            projects.map((proj) => (
-              <div key={proj.id} className="project-card">
+            projects.map((proj) => {
+              const canEnter = proj.isFollowing || proj.user_id === user?.id;
+              return (
+              <div 
+                key={proj.id} 
+                className={`project-card ${canEnter ? "clickable" : ""}`}
+                onClick={() => handleProjectClick(proj)}
+              >
                 {proj.image_url && (
                   <img src={proj.image_url} alt="Cover" className="project-cover" />
                 )}
@@ -246,20 +265,28 @@ export default function ProjectHub() {
                 
                 <p className="project-desc">{proj.description}</p>
 
-                <p className="project-owner">
-                  👤 {proj.profiles?.name || "User"}
-                </p>
+                <div className="project-owner" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-muted)', fontSize: '0.9rem', marginBottom: '16px' }} onClick={(e) => { e.stopPropagation(); navigate(`/user/${proj.user_id}`); }}>
+                  {proj.profiles?.avatar_url ? (
+                    <img src={proj.profiles.avatar_url} alt="avatar" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                      {proj.profiles?.name ? proj.profiles.name.charAt(0).toUpperCase() : "U"}
+                    </div>
+                  )}
+                  {proj.profiles?.name || "User"}
+                </div>
 
                 {proj.user_id !== user?.id && (
                   <button
                     className={`btn-follow ${proj.isFollowing ? "active" : ""}`}
-                    onClick={() => followProject(proj.id)}
+                    onClick={(e) => followProject(e, proj.id)}
                   >
                     {proj.isFollowing ? "Following" : "Follow Project"}
                   </button>
                 )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

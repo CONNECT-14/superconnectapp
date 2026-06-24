@@ -20,7 +20,7 @@ export default function Feed({ refresh, search, category, topic, sort }) {
         .from("posts")
         .select(`
           *,
-          profiles(name)
+          profiles(name, avatar_url)
         `)
         .order("created_at", { ascending: false });
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import SkeletonLoader from "../components/SkeletonLoader";
 
@@ -94,6 +95,7 @@ const styles = `
 export default function Followers() {
   const [followers, setFollowers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchFollowers();
@@ -115,7 +117,7 @@ export default function Followers() {
 
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, name")
+      .select("id, name, avatar_url")
       .in("id", ids);
 
     const merged = (data || []).map((f) => ({
@@ -152,8 +154,19 @@ export default function Followers() {
             <p className="empty-msg">No followers</p>
           ) : (
             followers.map((f, i) => (
-              <div key={i} className="list-card">
-                👤 {f.profiles?.name || "User"}
+              <div 
+                key={i} 
+                className="list-card"
+                onClick={() => navigate(`/user/${f.follower_id}`)}
+              >
+                {f.profiles?.avatar_url ? (
+                  <img src={f.profiles.avatar_url} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                    {f.profiles?.name ? f.profiles.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                )}
+                {f.profiles?.name || "User"}
               </div>
             ))
           )}

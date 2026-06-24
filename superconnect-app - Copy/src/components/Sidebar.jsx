@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
@@ -266,6 +267,33 @@ const navItems = [
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const ensureProfileExists = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      
+      if (user) {
+        // Check if profile exists
+        const { error } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .single();
+
+        // If not found, insert one using Google Auth metadata
+        if (error && error.code === 'PGRST116') {
+          await supabase.from("profiles").insert([{
+            id: user.id,
+            name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "User",
+            email: user.email
+          }]);
+        }
+      }
+    };
+
+    ensureProfileExists();
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
