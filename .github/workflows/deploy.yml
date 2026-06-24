@@ -42,6 +42,11 @@ jobs:
           npm ci --legacy-peer-deps --no-audit --no-fund || npm install --legacy-peer-deps
 
       - name: Build
+        env:
+          REACT_APP_SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL }}
+          REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}
+          REACT_APP_ENCRYPTION_KEY: ${{ secrets.REACT_APP_ENCRYPTION_KEY }}
+          PUBLIC_URL: /superconnectapp
         run: npm run build
 
       - name: Upload build artifact for Pages
