@@ -79,7 +79,7 @@ const Signup = () => {
       <div className="login-card animate-slideUp">
         <div className="login-header">
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <img src="/assests/logo-dark.png" alt="Brain Logo" style={{ height: "42px", objectFit: "contain" }} />
+            <img src={process.env.PUBLIC_URL + "/assests/logo-dark.png"} alt="Brain Logo" style={{ height: "42px", objectFit: "contain" }} />
             <span style={{ fontFamily: "'Poppins', sans-serif", fontSize: "2rem", fontWeight: "700", color: "var(--ink)", letterSpacing: "-0.02em" }}>Connect</span>
           </div>
           <p>Join Connect and start building 🚀</p>

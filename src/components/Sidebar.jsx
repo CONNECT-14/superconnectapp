@@ -307,7 +307,7 @@ export default function Sidebar() {
         {/* Left: Brand */}
         <div className="navbar-left">
           <Link to="/home" className="navbar-brand">
-            <img src="/assests/logo-light.png" alt="Brain Logo" />
+            <img src={process.env.PUBLIC_URL + "/assests/logo-light.png"} alt="Brain Logo" />
             <span className="brand-text">Connect</span>
           </Link>
         </div>

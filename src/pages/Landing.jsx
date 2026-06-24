@@ -9,7 +9,7 @@ const Landing = () => {
 
             <nav className="landing-navbar">
                 <Link to="/" className="landing-brand">
-                    <img src="/assests/logo-dark.png" alt="Brain Logo" />
+                    <img src={process.env.PUBLIC_URL + "/assests/logo-dark.png"} alt="Brain Logo" />
                     <span className="brand-text">Connect</span>
                 </Link>
             </nav>
@@ -18,7 +18,7 @@ const Landing = () => {
                 <div className="hero-content animate-slideUp">
                     <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginBottom: '24px'}}>
                         <img 
-                            src="/assests/logo-dark.png" 
+                            src={process.env.PUBLIC_URL + "/assests/logo-dark.png"} 
                             alt="Brain Logo" 
                             className="hero-logo-large" 
                             style={{marginBottom: '0'}}
