@@ -2,7 +2,7 @@
   "name": "superconnect-app",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://CONNECT-14.github.io/superconnectapp",
+  "homepage": ".",
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",
     "@testing-library/dom": "^10.4.1",
