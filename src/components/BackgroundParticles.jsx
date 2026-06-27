@@ -40,7 +40,7 @@ const BackgroundParticles = ({ variant = "full" }) => {
                     width: "calc(max(0px, 50vw - 450px))", height: "100%", 
                     zIndex: 0, pointerEvents: "none", overflow: "hidden" 
                 }}>
-                    <Particles id="tsparticles-bg-left" init={particlesInit} options={options} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+                    <Particles id="tsparticles-bg-left" init={particlesInit} options={options} style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%" }} />
                 </div>
                 {/* Right Side */}
                 <div style={{ 
@@ -48,7 +48,7 @@ const BackgroundParticles = ({ variant = "full" }) => {
                     width: "calc(max(0px, 50vw - 450px))", height: "100%", 
                     zIndex: 0, pointerEvents: "none", overflow: "hidden" 
                 }}>
-                    <Particles id="tsparticles-bg-right" init={particlesInit} options={options} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+                    <Particles id="tsparticles-bg-right" init={particlesInit} options={options} style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%" }} />
                 </div>
             </>
         );

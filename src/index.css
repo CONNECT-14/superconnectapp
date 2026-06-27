@@ -1,5 +1,4 @@
 html {
-  overflow-x: hidden;
   max-width: 100%;
 }
 
@@ -10,7 +9,6 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
   max-width: 100%;
   background: #0F0F11;
   color: #F4F4F5;
@@ -19,4 +17,11 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+body::-webkit-scrollbar {
+  display: none;
+}
+body {
+  scrollbar-width: none;
 }

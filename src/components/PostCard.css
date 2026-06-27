@@ -1,19 +1,17 @@
 .post-card {
   background: var(--surface);
   color: var(--ink);
-  padding: 20px;
+  padding: 24px;
   border-radius: 12px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  margin-bottom: 20px;
+  box-shadow: none;
   border: 1px solid #2A2A2F;
-  border-left: 1px solid #2A2A2F;
   transition: all 0.2s ease;
 }
 
 .post-card:hover {
   transform: translateY(-2px);
   border-color: #7C3AED;
-  border-left: 4px solid #7C3AED;
   box-shadow: 0 8px 24px rgba(124,58,237,0.1);
 }
 
@@ -107,7 +105,7 @@
 
 .post-image-container img {
   width: 100%;
-  max-height: 400px;
+  max-height: 500px;
   object-fit: cover;
   border-radius: 8px;
   border: 1px solid var(--border);

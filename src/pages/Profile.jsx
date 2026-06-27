@@ -3,6 +3,7 @@ import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import SkeletonLoader from "../components/SkeletonLoader";
 import BackgroundParticles from "../components/BackgroundParticles";
+import FollowModals from "../components/FollowModals";
 
 const styles = `
   :root {
@@ -460,6 +461,7 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [modalType, setModalType] = useState(null);
 
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -836,12 +838,12 @@ export default function Profile() {
                     )}
                     
                    <div className="profile-stats" style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
-                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer' }} onClick={() => setModalType('followers')}>
                        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{followersCount}</span>
                        <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Followers</span>
                      </div>
                      <div style={{ width: '1px', height: '32px', background: 'var(--border)' }}></div>
-                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer' }} onClick={() => setModalType('following')}>
                        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{followingCount}</span>
                        <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Following</span>
                      </div>
@@ -949,6 +951,12 @@ export default function Profile() {
           </div>
         </div>
       </div>
+      <FollowModals 
+        isOpen={!!modalType} 
+        onClose={() => setModalType(null)} 
+        type={modalType} 
+        userId={user?.id} 
+      />
     </>
   );
 }

@@ -282,9 +282,7 @@ export default function PostCard({ post, onDelete }) {
       {/* IMAGE */}
       {images.length > 0 && (
         <div className="post-image-container">
-          {images.map((img, index) => (
-            <img key={index} src={img} alt="post" />
-          ))}
+          <img src={images[0]} alt="post" />
         </div>
       )}
 

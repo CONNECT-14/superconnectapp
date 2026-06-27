@@ -206,6 +206,180 @@ const styles = `
     font-size: 0.9rem;
     font-style: italic;
   }
+
+  /* Controls */
+  .controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 32px;
+    width: 100%;
+  }
+  .controls-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+  }
+  .search-input {
+    flex: 1;
+    max-width: 400px;
+    background: #1A1A1F;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color var(--transition);
+  }
+  .search-input:focus {
+    border-color: #7C3AED;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+  }
+  .search-input::placeholder {
+    color: var(--ink-muted);
+  }
+  .status-dropdown {
+    background: #111114;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    cursor: pointer;
+  }
+  .btn-new-project {
+    background: #7C3AED;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .btn-new-project:hover {
+    background: #6D28D9;
+  }
+  @media (max-width: 600px) {
+    .controls-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .controls-left {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .search-input {
+      max-width: none;
+    }
+  }
+
+  /* Empty State */
+  .empty-state-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 24px;
+    text-align: center;
+    background: rgba(26, 26, 31, 0.5);
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+  }
+  .empty-state-title {
+    color: var(--ink-muted);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .empty-state-subtitle {
+    color: #A1A1AA;
+    font-size: 0.95rem;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 24px;
+  }
+  .modal-card {
+    background: #1A1A1F;
+    border: 1px solid #2A2A2F;
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 500px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .modal-heading {
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+  .modal-label {
+    font-size: 14px;
+    color: var(--ink-muted);
+    margin-bottom: 4px;
+  }
+  .modal-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    width: 100%;
+  }
+  .modal-input:focus { border-color: #7C3AED; }
+  .modal-textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .btn-cancel {
+    background: transparent;
+    border: 1px solid #A1A1AA;
+    color: #A1A1AA;
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-cancel:hover { background: rgba(161, 161, 170, 0.1); }
+  .btn-submit {
+    background: #7C3AED;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-submit:hover { background: #6D28D9; }
 `;
 
 export default function ProjectHub() {
@@ -213,6 +387,14 @@ export default function ProjectHub() {
   const [user, setUser] = useState(null); 
   const [loading, setLoading] = useState(true);
   const [followStatus, setFollowStatus] = useState({}); // { [projectId]: boolean }
+  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newProject, setNewProject] = useState({ title: "", description: "", status: "Idea", imageFile: null });
+  const [isCreating, setIsCreating] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -297,6 +479,64 @@ export default function ProjectHub() {
     navigate(`/project/${proj.id}`);
   };
 
+  const createProject = async () => {
+    if (!user) return alert("You must be logged in");
+    if (!newProject.title.trim()) return alert("Enter project title");
+
+    setIsCreating(true);
+    let imageUrl = null;
+
+    if (newProject.imageFile) {
+      const fileName = `covers-${Date.now()}-${newProject.imageFile.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("project-images")
+        .upload(fileName, newProject.imageFile);
+
+      if (uploadError) {
+        alert("Image upload failed: " + uploadError.message);
+        setIsCreating(false);
+        return;
+      }
+      
+      const { data } = supabase.storage
+        .from("project-images")
+        .getPublicUrl(fileName);
+      imageUrl = data.publicUrl;
+    }
+
+    const { error } = await supabase
+      .from("projects")
+      .insert([{ 
+        user_id: user.id, 
+        title: newProject.title, 
+        description: newProject.description, 
+        image_url: imageUrl, 
+        status: newProject.status 
+      }]);
+
+    if (error) {
+      alert(error.message);
+    } else {
+      setIsModalOpen(false);
+      setNewProject({ title: "", description: "", status: "Idea", imageFile: null });
+      fetchProjects(user); // Refresh the list
+    }
+    setIsCreating(false);
+  };
+
+  const filteredProjects = projects.filter(p => {
+    const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const statusVal = (p.status || "idea").toLowerCase();
+    let matchesStatus = true;
+    if (statusFilter === "Idea") matchesStatus = statusVal === "idea";
+    if (statusFilter === "In Progress") matchesStatus = statusVal === "in progress" || statusVal === "in-progress";
+    if (statusFilter === "Live") matchesStatus = statusVal === "live";
+
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <>
       <style>{styles}</style>
@@ -308,13 +548,41 @@ export default function ProjectHub() {
             <p className="page-subtitle">Discover and follow projects</p>
           </div>
 
+          <div className="controls-row">
+            <div className="controls-left">
+              <input 
+                type="text" 
+                className="search-input" 
+                placeholder="Search projects..." 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              <select className="status-dropdown" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                <option value="All">All</option>
+                <option value="Idea">Idea</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Live">Live</option>
+              </select>
+            </div>
+            <button className="btn-new-project" onClick={() => setIsModalOpen(true)}>
+              + New Project
+            </button>
+          </div>
+
           {loading ? (
              <SkeletonLoader type="page" />
-          ) : projects.length === 0 ? (
-            <p className="empty-msg">No projects yet</p>
+          ) : filteredProjects.length === 0 ? (
+            <div className="empty-state-container">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom: '16px'}}>
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <div className="empty-state-title">No projects found</div>
+              <div className="empty-state-subtitle">Try a different search term</div>
+            </div>
           ) : (
             <div className="projects-grid">
-            {projects.map((proj) => {
+            {filteredProjects.map((proj) => {
               return (
               <div 
                 key={proj.id} 
@@ -363,6 +631,64 @@ export default function ProjectHub() {
           )}
         </div>
       </div>
+
+      {isModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()}>
+            <div className="modal-heading">Create New Project</div>
+            
+            <div>
+              <div className="modal-label">Project Title</div>
+              <input 
+                className="modal-input" 
+                value={newProject.title} 
+                onChange={e => setNewProject({...newProject, title: e.target.value})} 
+                placeholder="e.g. NextGen API"
+              />
+            </div>
+
+            <div>
+              <div className="modal-label">Description</div>
+              <textarea 
+                className="modal-input modal-textarea" 
+                value={newProject.description} 
+                onChange={e => setNewProject({...newProject, description: e.target.value})}
+                placeholder="What is your project about?"
+              />
+            </div>
+
+            <div>
+              <div className="modal-label">Status</div>
+              <select 
+                className="modal-input" 
+                value={newProject.status} 
+                onChange={e => setNewProject({...newProject, status: e.target.value})}
+              >
+                <option value="Idea">Idea</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Live">Live</option>
+              </select>
+            </div>
+
+            <div>
+              <div className="modal-label">Cover Image (Optional)</div>
+              <input 
+                type="file" 
+                accept="image/*" 
+                style={{color: 'var(--ink)'}}
+                onChange={e => setNewProject({...newProject, imageFile: e.target.files[0]})}
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setIsModalOpen(false)}>Cancel</button>
+              <button className="btn-submit" onClick={createProject} disabled={isCreating}>
+                {isCreating ? "Creating..." : "Create Project"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

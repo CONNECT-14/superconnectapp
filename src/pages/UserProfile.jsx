@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import SkeletonLoader from "../components/SkeletonLoader";
+import FollowModals from "../components/FollowModals";
 
 const styles = `
   :root {
@@ -201,6 +202,7 @@ export default function UserProfile() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowingUser, setIsFollowingUser] = useState(false);
+  const [modalType, setModalType] = useState(null);
 
   useEffect(() => {
     init();
@@ -337,12 +339,12 @@ export default function UserProfile() {
                    {userProfile?.age && <p className="profile-meta">🎂 {userProfile.age} years old</p>}
                    
                    <div className="profile-stats" style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
-                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer' }} onClick={() => setModalType('followers')}>
                        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{followersCount}</span>
                        <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Followers</span>
                      </div>
                      <div style={{ width: '1px', height: '32px', background: 'var(--border)' }}></div>
-                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer' }} onClick={() => setModalType('following')}>
                        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{followingCount}</span>
                        <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Following</span>
                      </div>
@@ -390,6 +392,12 @@ export default function UserProfile() {
           </div>
         </div>
       </div>
+      <FollowModals 
+        isOpen={!!modalType} 
+        onClose={() => setModalType(null)} 
+        type={modalType} 
+        userId={id} 
+      />
     </>
   );
 }
