@@ -11,7 +11,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
 
   // For empty states
   const [suggestedUsers, setSuggestedUsers] = useState([]);
-  const [suggestedProjects, setSuggestedProjects] = useState([]);
+  // const [suggestedProjects, setSuggestedProjects] = useState([]);
 
   useEffect(() => {
     fetchPosts();
@@ -22,7 +22,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
     setLoading(true);
     setErrorObj(null);
     setSuggestedUsers([]);
-    setSuggestedProjects([]);
+    // setSuggestedProjects([]);
 
     try {
       // ─── Step 1: Get who the user follows ───────────────────────────────────
@@ -257,13 +257,13 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
     }
   };
 
-  const handleFollowProject = async (targetId) => {
-    if (!currentUser) return;
-    const { error } = await supabase.from("project_followers").insert({ user_id: currentUser.id, project_id: targetId });
-    if (!error) {
-      setSuggestedProjects(prev => prev.filter(p => p.id !== targetId));
-    }
-  };
+  // const handleFollowProject = async (targetId) => {
+  //   if (!currentUser) return;
+  //   const { error } = await supabase.from("project_followers").insert({ user_id: currentUser.id, project_id: targetId });
+  //   if (!error) {
+  //     setSuggestedProjects(prev => prev.filter(p => p.id !== targetId));
+  //   }
+  // };
 
   return (
     <div>

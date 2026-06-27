@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 
@@ -132,35 +132,7 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
   const [myFollowing, setMyFollowing] = useState([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (isOpen && userId) {
-      init();
-    }
-  }, [isOpen, userId, type]);
-
-  const init = async () => {
-    setLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const cUser = session?.user;
-    setCurrentUser(cUser);
-
-    if (cUser) {
-      const { data: followingData } = await supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", cUser.id);
-      setMyFollowing(followingData?.map(f => f.following_id) || []);
-    }
-
-    if (type === "followers") {
-      await fetchFollowers();
-    } else {
-      await fetchFollowing();
-    }
-    setLoading(false);
-  };
-
-  const fetchFollowers = async () => {
+  const fetchFollowers = useCallback(async () => {
     const { data } = await supabase
       .from("follows")
       .select("*")
@@ -177,9 +149,9 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
       profiles: (profiles || []).find((p) => p.id === f.follower_id),
     }));
     setList(merged);
-  };
+  }, [userId]);
 
-  const fetchFollowing = async () => {
+  const fetchFollowing = useCallback(async () => {
     // Users
     const { data: userData } = await supabase
       .from("follows")
@@ -229,7 +201,35 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
       };
     });
     setProjectList(mergedProjects);
-  };
+  }, [userId]);
+
+  const init = useCallback(async () => {
+    setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const cUser = session?.user;
+    setCurrentUser(cUser);
+
+    if (cUser) {
+      const { data: followingData } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", cUser.id);
+      setMyFollowing(followingData?.map(f => f.following_id) || []);
+    }
+
+    if (type === "followers") {
+      await fetchFollowers();
+    } else {
+      await fetchFollowing();
+    }
+    setLoading(false);
+  }, [type, fetchFollowers, fetchFollowing]);
+
+  useEffect(() => {
+    if (isOpen && userId) {
+      init();
+    }
+  }, [isOpen, userId, type, init]);
 
   const toggleFollow = async (e, targetUserId) => {
     e.stopPropagation();
