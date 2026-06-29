@@ -403,23 +403,28 @@ export default function ProjectHub() {
   }, []);
 
   const init = async () => {
+    const start = Date.now();
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       setUser(user);
       if (user) {
-        fetchProjects(user);
+        await fetchProjects(user, start);
       } else {
+        const elapsed = Date.now() - start;
+        if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
         setLoading(false);
       }
     } catch(err) {
       console.error(err);
+      const elapsed = Date.now() - start;
+      if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
       setLoading(false);
     }
   };
 
   // Fetch all projects and build follow status map per project ID
-  const fetchProjects = async (currentUser) => {
+  const fetchProjects = async (currentUser, start = Date.now()) => {
     const { data: projectsData } = await supabase
       .from("projects")
       .select(`*, profiles(name, avatar_url)`)
@@ -440,6 +445,9 @@ export default function ProjectHub() {
 
     setProjects(projectsData || []);
     setFollowStatus(statusMap);
+    
+    const elapsed = Date.now() - start;
+    if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
     setLoading(false);
   };
 
@@ -570,7 +578,11 @@ export default function ProjectHub() {
           </div>
 
           {loading ? (
-             <SkeletonLoader type="page" />
+              <div className="projects-grid">
+                <SkeletonLoader type="project" />
+                <SkeletonLoader type="project" />
+                <SkeletonLoader type="project" />
+              </div>
           ) : filteredProjects.length === 0 ? (
             <div className="empty-state-container">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom: '16px'}}>

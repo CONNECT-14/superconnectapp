@@ -184,6 +184,288 @@ const styles = `
     color: white; 
   }
 
+  /* Project delete button: hover-only */
+  .project-delete-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    z-index: 10;
+    opacity: 0;
+    transition: all 0.2s ease;
+  }
+  .project-card:hover .project-delete-btn {
+    opacity: 1;
+  }
+  .project-delete-btn:hover {
+    background: #EF4444;
+    color: white;
+  }
+
+  /* ── My Posts Section ── */
+  .my-posts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .my-post-card {
+    background: #1A1A1F;
+    border: 1px solid #2A2A2F;
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    transition: border-color var(--transition);
+  }
+
+  .my-post-card:hover {
+    border-color: var(--accent);
+  }
+
+  .my-post-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .my-post-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .my-post-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .my-post-username {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #F4F4F5;
+  }
+
+  .my-post-content {
+    margin-top: 12px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #A1A1AA;
+  }
+
+  .my-post-tags {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .my-post-tag {
+    background: rgba(124, 58, 237, 0.12);
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    border-radius: 20px;
+    color: #A855F7;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .my-post-image {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-top: 12px;
+  }
+
+  .my-post-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  .my-post-like {
+    background: #0F0F11;
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    color: var(--ink);
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    cursor: default;
+  }
+
+  .my-post-comments-btn {
+    background: none;
+    border: none;
+    color: #A1A1AA;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: 'Inter', sans-serif;
+    padding: 0;
+    transition: color 0.2s ease;
+  }
+
+  .my-post-comments-btn:hover {
+    color: #7C3AED;
+  }
+
+  .post-delete-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    background: transparent;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+  }
+  .my-post-card:hover .post-delete-btn {
+    opacity: 1;
+  }
+  .post-delete-btn:hover {
+    background: #ef4444;
+    color: white;
+  }
+
+  .my-post-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ink-muted);
+  }
+
+  .my-post-empty p {
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+  }
+
+  .btn-go-dashboard {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    transition: background var(--transition);
+  }
+
+  .btn-go-dashboard:hover {
+    background: var(--accent-hover);
+  }
+
+  /* Comments section within my-post-card */
+  .my-post-comments-container {
+    max-height: 140px;
+    overflow-y: auto;
+    background: #0F0F11;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-top: 12px;
+    border: 1px solid var(--border);
+  }
+
+  .my-post-comment-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #A1A1AA;
+  }
+
+  .my-post-comment-item:last-child {
+    border-bottom: none;
+  }
+
+  .my-post-comment-user {
+    font-weight: 600;
+    color: #A855F7;
+    margin-right: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .my-post-comment-box {
+    display: flex;
+    margin-top: 12px;
+    gap: 8px;
+  }
+
+  .my-post-comment-box input {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #0F0F11;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    color: #F4F4F5;
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .my-post-comment-box input:focus {
+    border-color: #7C3AED;
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
+  }
+
+  .my-post-comment-box button {
+    padding: 0 16px;
+    background: #7C3AED;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .my-post-comment-box button:hover {
+    background: #6D28D9;
+  }
+
+  .my-post-comments-container::-webkit-scrollbar {
+    width: 4px;
+  }
+  .my-post-comments-container::-webkit-scrollbar-thumb {
+    background: #2A2A2F;
+    border-radius: 10px;
+  }
+
   .file-label {
     display: inline-flex;
     align-items: center;
@@ -463,6 +745,14 @@ export default function Profile() {
   const [followingCount, setFollowingCount] = useState(0);
   const [modalType, setModalType] = useState(null);
 
+  // My Posts state
+  const [myPosts, setMyPosts] = useState([]);
+  const [postsCount, setPostsCount] = useState(0);
+  const [postComments, setPostComments] = useState({});
+  const [postLikes, setPostLikes] = useState({});
+  const [showPostComments, setShowPostComments] = useState({});
+  const [commentInputs, setCommentInputs] = useState({});
+
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
@@ -474,6 +764,7 @@ export default function Profile() {
   }, []);
 
   const getUser = async () => {
+    const start = Date.now();
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) throw error;
@@ -495,11 +786,14 @@ export default function Profile() {
         }
         
         await fetchProjects(user.id);
+        await fetchMyPosts(user.id);
         await fetchFollowStats(user.id);
       }
     } catch (err) {
       console.error("Error fetching user:", err.message);
     } finally {
+      const elapsed = Date.now() - start;
+      if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
       setLoading(false);
     }
   };
@@ -513,6 +807,89 @@ export default function Profile() {
 
     if (error) console.error("Error fetching projects:", error.message);
     else setProjects(data || []);
+  };
+
+  const fetchMyPosts = async (userId) => {
+    const { data, error } = await supabase
+      .from("posts")
+      .select(`*, profiles(name, avatar_url)`)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching posts:", error.message);
+      return;
+    }
+
+    // Parse content for category/topic like Feed does
+    const parsed = (data || []).map(p => {
+      if (p.content && p.content.startsWith("{") && p.content.includes('"text"')) {
+        try {
+          const obj = JSON.parse(p.content);
+          return { ...p, content: obj.text || "", category: obj.category, topic: obj.topic };
+        } catch (e) {}
+      }
+      return p;
+    });
+
+    setMyPosts(parsed);
+    setPostsCount(parsed.length);
+
+    // Fetch like counts for each post
+    const likesMap = {};
+    for (const post of parsed) {
+      const { data: likes } = await supabase
+        .from("likes")
+        .select("id")
+        .eq("post_id", post.id);
+      likesMap[post.id] = likes?.length || 0;
+    }
+    setPostLikes(likesMap);
+  };
+
+  const deleteMyPost = async (postId) => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this post?');
+    if (!confirmDelete) return;
+
+    const { error } = await supabase
+      .from("posts")
+      .delete()
+      .eq("id", postId);
+
+    if (error) {
+      alert("Could not delete: " + error.message);
+    } else {
+      setMyPosts(prev => prev.filter(p => p.id !== postId));
+      setPostsCount(prev => prev - 1);
+    }
+  };
+
+  const fetchPostComments = async (postId) => {
+    const { data } = await supabase
+      .from("comments")
+      .select(`*, profiles(name, avatar_url)`)
+      .eq("post_id", postId)
+      .order("created_at", { ascending: false });
+    setPostComments(prev => ({ ...prev, [postId]: data || [] }));
+  };
+
+  const togglePostComments = async (postId) => {
+    const isShowing = showPostComments[postId];
+    if (!isShowing) await fetchPostComments(postId);
+    setShowPostComments(prev => ({ ...prev, [postId]: !isShowing }));
+  };
+
+  const handlePostComment = async (postId) => {
+    if (!user || !commentInputs[postId]?.trim()) return;
+    const { error } = await supabase.from("comments").insert([{
+      user_id: user.id,
+      post_id: postId,
+      content: commentInputs[postId],
+    }]);
+    if (!error) {
+      setCommentInputs(prev => ({ ...prev, [postId]: "" }));
+      await fetchPostComments(postId);
+    }
   };
 
   const fetchFollowStats = async (userId) => {
@@ -710,7 +1087,7 @@ export default function Profile() {
     <div className="profile-root">
       <BackgroundParticles variant="split" />
       <div className="profile-inner">
-        <SkeletonLoader type="page" />
+        <SkeletonLoader type="profile" />
       </div>
     </div>
   );
@@ -852,6 +1229,11 @@ export default function Profile() {
                        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{projects.length}</span>
                        <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Projects</span>
                      </div>
+                     <div style={{ width: '1px', height: '32px', background: 'var(--border)' }}></div>
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                       <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{postsCount}</span>
+                       <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Posts</span>
+                     </div>
                    </div>
                  </div>
                )}
@@ -922,7 +1304,7 @@ export default function Profile() {
                     onClick={() => navigate(`/project/${proj.id}`)}
                   >
                     <button
-                      className="delete-btn"
+                      className="project-delete-btn"
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteProject(proj.id);
@@ -946,6 +1328,93 @@ export default function Profile() {
                     )}
                   </div>
                 ))
+              )}
+            </div>
+          </div>
+
+          {/* MY POSTS SECTION */}
+          <div style={{ marginTop: '48px' }}>
+            <p className="section-label">My Posts ({postsCount})</p>
+            <div className="my-posts-list">
+              {myPosts.length === 0 ? (
+                <div className="my-post-empty">
+                  <p>You haven't posted anything yet</p>
+                  <button className="btn-go-dashboard" onClick={() => navigate('/home')}>Go to Dashboard</button>
+                </div>
+              ) : (
+                myPosts.map(post => {
+                  let images = [];
+                  if (post.image_urls?.length > 0) images = post.image_urls;
+                  else if (post.image_url) images = [post.image_url];
+
+                  return (
+                    <div key={post.id} className="my-post-card">
+                      <button className="post-delete-btn" onClick={() => deleteMyPost(post.id)}>Delete</button>
+                      <div className="my-post-header">
+                        <div className="my-post-avatar">
+                          {profileData?.avatar_url ? (
+                            <img src={profileData.avatar_url} alt="avatar" />
+                          ) : (
+                            profileData?.name ? profileData.name.charAt(0).toUpperCase() : "U"
+                          )}
+                        </div>
+                        <span className="my-post-username">{profileData?.name || "User"}</span>
+                      </div>
+                      <div className="my-post-content">
+                        <p>{post.content}</p>
+                      </div>
+                      {(post.category || post.topic) && (
+                        <div className="my-post-tags">
+                          {post.category && <span className="my-post-tag">{post.category}</span>}
+                          {post.topic && <span className="my-post-tag">{post.topic}</span>}
+                        </div>
+                      )}
+                      {images.length > 0 && (
+                        <img src={images[0]} alt="post" className="my-post-image" />
+                      )}
+                      <div className="my-post-actions">
+                        <span className="my-post-like">❤️ {postLikes[post.id] || 0}</span>
+                        <button className="my-post-comments-btn" onClick={() => togglePostComments(post.id)}>
+                          💬 {showPostComments[post.id] ? "Hide comments" : "Show comments"}
+                        </button>
+                      </div>
+                      {showPostComments[post.id] && (
+                        <>
+                          <div className="my-post-comments-container">
+                            {(postComments[post.id] || []).length === 0 ? (
+                              <p style={{ color: 'var(--ink-muted)', fontSize: '13px' }}>No comments yet.</p>
+                            ) : (
+                              (postComments[post.id] || []).slice(0, 4).map(c => (
+                                <div key={c.id} className="my-post-comment-item">
+                                  <span className="my-post-comment-user">
+                                    {c.profiles?.avatar_url ? (
+                                      <img src={c.profiles.avatar_url} alt="" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
+                                    ) : (
+                                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--border)', color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold' }}>
+                                        {c.profiles?.name ? c.profiles.name.charAt(0).toUpperCase() : "U"}
+                                      </span>
+                                    )}
+                                    {c.profiles?.name || "User"}
+                                  </span>
+                                  : {c.content}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <div className="my-post-comment-box">
+                            <input
+                              value={commentInputs[post.id] || ""}
+                              onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                              placeholder="Write a comment..."
+                              onKeyDown={(e) => { if (e.key === 'Enter') handlePostComment(post.id); }}
+                            />
+                            <button onClick={() => handlePostComment(post.id)}>Post</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

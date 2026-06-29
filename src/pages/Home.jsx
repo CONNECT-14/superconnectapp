@@ -503,11 +503,7 @@ const Home = () => {
 
   const handleRefresh = () => setRefresh((prev) => !prev);
 
-  if (loading) return (
-    <div className="home-root" style={{display:'flex',justifyContent:'center',paddingTop:'100px'}}>
-      <SkeletonLoader type="block" />
-    </div>
-  );
+
 
   return (
     <>

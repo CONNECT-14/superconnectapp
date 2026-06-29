@@ -15,9 +15,11 @@ import UserProfile from "./pages/UserProfile";
 import ProjectPage from "./pages/ProjectPage";
 import ProjectHub from "./pages/ProjectHub";
 import ResetPassword from "./pages/ResetPassword";
+import ExplorePage from "./pages/ExplorePage";
 
 // Components
 import Sidebar from "./components/Sidebar";
+import TopProgressBar from "./components/TopProgressBar";
 
 // Pages where navbar should NOT appear
 const NO_NAVBAR_ROUTES = ["/", "/login", "/register", "/reset-password"];
@@ -39,6 +41,7 @@ function Layout() {
 
   return (
     <>
+      <TopProgressBar />
       {showNavbar && <Sidebar />}
       <main className="main-content" style={showNavbar ? { marginTop: 64 } : {}}>
         <Routes>
@@ -61,6 +64,7 @@ function Layout() {
           <Route path="/user/:id" element={<UserProfile />} />
           <Route path="/project/:id" element={<ProjectPage />} />
           <Route path="/project-hub" element={<ProjectHub />} />
+          <Route path="/explore" element={<ExplorePage />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
         </Routes>

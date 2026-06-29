@@ -4,7 +4,7 @@ import PostCard from "./PostCard";
 import ProjectFeedCard from "./ProjectFeedCard";
 import SkeletonLoader from "./SkeletonLoader";
 
-export default function Feed({ refresh, feedType, currentUser, search, category, topic, sort }) {
+export default function Feed({ refresh, feedType, currentUser, search, category, topic, sort, globalMode = false }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorObj, setErrorObj] = useState(null);
@@ -16,10 +16,19 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
   useEffect(() => {
     fetchPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refresh, feedType, currentUser, search, category, topic, sort]);
+  }, [refresh, feedType, currentUser, search, category, topic, sort, globalMode]);
 
   const fetchPosts = async () => {
     setLoading(true);
+    const start = Date.now();
+    await _fetchPostsInner();
+    const elapsed = Date.now() - start;
+    if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
+    setLoading(false);
+  };
+
+  const _fetchPostsInner = async () => {
+    // setLoading(true);
     setErrorObj(null);
     setSuggestedUsers([]);
     // setSuggestedProjects([]);
@@ -37,7 +46,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
 
       // ─── ALL TAB ─────────────────────────────────────────────────────────────
       if (feedType === 'All') {
-        if (followingIds.length === 0) {
+        if (!globalMode && followingIds.length === 0) {
           // empty state: suggest users
           if (currentUser) {
             const { data: sUsers } = await supabase
@@ -48,21 +57,24 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
             setSuggestedUsers(sUsers || []);
           }
           setPosts([]);
-          setLoading(false);
+          // setLoading(false);
           return;
         }
 
-        // fetch posts by followed users
+        // fetch posts by followed users (or all if globalMode)
         let postQuery = supabase
           .from("posts")
           .select(`*, profiles(name, avatar_url)`)
-          .in("user_id", followingIds)
           .order("created_at", { ascending: false });
+
+        if (!globalMode) {
+          postQuery = postQuery.in("user_id", followingIds);
+        }
 
         if (search && search.trim() !== "") {
           const { data: users } = await supabase.from("profiles").select("id").ilike("name", `%${search}%`);
           const matchIds = (users?.map(u => u.id) || []).filter(id => followingIds.includes(id));
-          if (matchIds.length === 0) { setPosts([]); setLoading(false); return; }
+          if (matchIds.length === 0) { setPosts([]); /* setLoading(false); */ return; }
           postQuery = postQuery.in("user_id", matchIds);
         }
 
@@ -82,12 +94,15 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
         if (category && category !== "All") posts = posts.filter(p => p.category === category);
         if (topic && topic !== "All") posts = posts.filter(p => p.topic === topic);
 
-        // fetch projects by followed users (source 2)
+        // fetch projects (source 2)
         let projQuery = supabase
           .from("projects")
           .select(`*, profiles(name, avatar_url)`)
-          .in("user_id", followingIds)
           .order("created_at", { ascending: false });
+
+        if (!globalMode) {
+          projQuery = projQuery.in("user_id", followingIds);
+        }
 
         if (search && search.trim() !== "") {
           projQuery = projQuery.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
@@ -152,13 +167,13 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
         }
 
         setPosts(combined);
-        setLoading(false);
+        // setLoading(false);
         return;
       }
 
       // ─── POSTS TAB ───────────────────────────────────────────────────────────
       if (feedType === 'Posts') {
-        if (followingIds.length === 0) {
+        if (!globalMode && followingIds.length === 0) {
           if (currentUser) {
             const { data: sUsers } = await supabase
               .from("profiles")
@@ -168,20 +183,23 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
             setSuggestedUsers(sUsers || []);
           }
           setPosts([]);
-          setLoading(false);
+          // setLoading(false);
           return;
         }
 
         let postQuery = supabase
           .from("posts")
           .select(`*, profiles(name, avatar_url)`)
-          .in("user_id", followingIds)
           .order("created_at", { ascending: false });
+
+        if (!globalMode) {
+          postQuery = postQuery.in("user_id", followingIds);
+        }
 
         if (search && search.trim() !== "") {
           const { data: users } = await supabase.from("profiles").select("id").ilike("name", `%${search}%`);
           const matchIds = (users?.map(u => u.id) || []).filter(id => followingIds.includes(id));
-          if (matchIds.length === 0) { setPosts([]); setLoading(false); return; }
+          if (matchIds.length === 0) { setPosts([]); /* setLoading(false); */ return; }
           postQuery = postQuery.in("user_id", matchIds);
         }
 
@@ -216,45 +234,52 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
         }
 
         setPosts(result);
-        setLoading(false);
+        // setLoading(false);
         return;
       }
 
       // ─── PROJECTS TAB ────────────────────────────────────────────────────────
       if (feedType === 'Projects') {
-        // Projects directly followed by user
-        let directlyFollowedProjectIds = [];
-        if (currentUser) {
-          const { data: pf } = await supabase
-            .from("project_followers")
-            .select("project_id")
-            .eq("user_id", currentUser.id);
-          directlyFollowedProjectIds = pf?.map(p => p.project_id) || [];
-        }
+        let allProjectIds = [];
+        
+        if (!globalMode) {
+          // Projects directly followed by user
+          let directlyFollowedProjectIds = [];
+          if (currentUser) {
+            const { data: pf } = await supabase
+              .from("project_followers")
+              .select("project_id")
+              .eq("user_id", currentUser.id);
+            directlyFollowedProjectIds = pf?.map(p => p.project_id) || [];
+          }
 
-        // Projects created by people the user follows
-        let followedUserProjectIds = [];
-        if (followingIds.length > 0) {
-          const { data: fp } = await supabase
-            .from("projects")
-            .select("id")
-            .in("user_id", followingIds);
-          followedUserProjectIds = fp?.map(p => p.id) || [];
-        }
+          // Projects created by people the user follows
+          let followedUserProjectIds = [];
+          if (followingIds.length > 0) {
+            const { data: fp } = await supabase
+              .from("projects")
+              .select("id")
+              .in("user_id", followingIds);
+            followedUserProjectIds = fp?.map(p => p.id) || [];
+          }
 
-        const allProjectIds = [...new Set([...directlyFollowedProjectIds, ...followedUserProjectIds])];
+          allProjectIds = [...new Set([...directlyFollowedProjectIds, ...followedUserProjectIds])];
 
-        if (allProjectIds.length === 0) {
-          setPosts([]);
-          setLoading(false);
-          return;
+          if (allProjectIds.length === 0) {
+            setPosts([]);
+            // setLoading(false);
+            return;
+          }
         }
 
         let projQuery = supabase
           .from("projects")
           .select(`*, profiles(name, avatar_url)`)
-          .in("id", allProjectIds)
           .order("created_at", { ascending: false });
+
+        if (!globalMode) {
+          projQuery = projQuery.in("id", allProjectIds);
+        }
 
         if (search && search.trim() !== "") {
           projQuery = projQuery.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
@@ -265,7 +290,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
 
         const projects = (projData || []).map(pr => ({ ...pr, type: 'project' }));
         setPosts(projects);
-        setLoading(false);
+        // setLoading(false);
         return;
       }
 
@@ -273,7 +298,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
       console.error("Feed error:", err);
       setErrorObj(err.message || "Failed to load feed.");
     } finally {
-      setLoading(false);
+      // setLoading(false);
     }
   };
 
@@ -364,10 +389,11 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
       `}</style>
       
       {loading ? (
-        <>
-          <SkeletonLoader />
-          <SkeletonLoader />
-        </>
+        <div className="posts-list" style={{ marginTop: 24 }}>
+          <SkeletonLoader type="post" />
+          <SkeletonLoader type="post" />
+          <SkeletonLoader type="post" />
+        </div>
       ) : errorObj ? (
         <div style={{ color: "var(--accent)", textAlign: "center", padding: "20px", background: "rgba(200,68,26,0.1)", borderRadius: "8px", border: "1px solid var(--accent)" }}>
           <p style={{ fontWeight: "600", marginBottom: "8px" }}>Network Action Failed</p>
@@ -375,9 +401,9 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
           <button onClick={fetchPosts} style={{ marginTop: "12px", background: "var(--accent)", color: "white", border: "none", padding: "8px 16px", borderRadius: "6px", cursor: "pointer" }}>Retry</button>
         </div>
       ) : (
-        <>
+        <div className="posts-list" style={{ marginTop: 24 }}>
           {/* ALL & POSTS empty state: not following anyone */}
-          {(feedType === 'All' || feedType === 'Posts') && posts.length === 0 && suggestedUsers.length > 0 && (
+          {(feedType === 'All' || feedType === 'Posts') && posts.length === 0 && !globalMode && suggestedUsers.length > 0 && (
             <div className="empty-feed-card">
               <div className="empty-feed-title">Follow people to see their feed</div>
               <div className="empty-feed-subtitle">Here are some suggested users you might know:</div>
@@ -401,14 +427,14 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
           )}
 
           {/* ALL & POSTS: following someone but nothing to show */}
-          {(feedType === 'All' || feedType === 'Posts') && posts.length === 0 && suggestedUsers.length === 0 && (
+          {(feedType === 'All' || feedType === 'Posts') && posts.length === 0 && !globalMode && suggestedUsers.length === 0 && (
             <p style={{ color: "var(--ink-muted)", fontStyle: "italic", fontSize: "0.9rem", textAlign: "center", padding: "20px" }}>
               No posts yet from people you follow.
             </p>
           )}
 
           {/* PROJECTS empty state */}
-          {feedType === 'Projects' && posts.length === 0 && (
+          {feedType === 'Projects' && posts.length === 0 && !globalMode && (
             <div className="empty-feed-card">
               <div className="empty-feed-title">No projects yet</div>
               <div className="empty-feed-subtitle">Follow people and projects to see them here</div>
@@ -416,6 +442,13 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
                 <a href="/project-hub" style={{ padding: '8px 20px', background: 'var(--accent)', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 'bold' }}>Browse Projects</a>
               </div>
             </div>
+          )}
+
+          {/* GLOBAL empty states */}
+          {posts.length === 0 && globalMode && (
+            <p style={{ color: "var(--ink-muted)", fontStyle: "italic", fontSize: "0.9rem", textAlign: "center", padding: "20px" }}>
+              No content found in the community yet.
+            </p>
           )}
 
           {posts.map((item) => (
@@ -429,7 +462,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
               />
             )
           ))}
-        </>
+        </div>
       )}
     </div>
   );
