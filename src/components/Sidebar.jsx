@@ -518,8 +518,31 @@ export default function Sidebar() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
+    try {
+      // 1. Backend Revocation: invalidate session on the server
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Error during backend logout:", error);
+    } finally {
+      // 2. Clear Client-Side Storage: JWTs, session IDs, user data
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear all accessible cookies
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+
+      // 3 & 4. Reset Auth State and Final Redirect
+      // Navigate to the starting page, then force a full page reload to 
+      // completely clear any React memory state (Redux/Context/useState).
+      navigate("/", { replace: true });
+      setTimeout(() => {
+        window.location.reload();
+      }, 50);
+    }
   };
 
   return (
