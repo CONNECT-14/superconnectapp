@@ -608,7 +608,7 @@ export default function ProjectHub() {
                 
                 <p className="project-desc">{proj.description}</p>
 
-                <div className="project-owner" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '16px' }} onClick={(e) => { e.stopPropagation(); navigate(`/user/${proj.user_id}`); }}>
+                <div className="project-owner" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '16px' }} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${proj.user_id}`); }}>
                   {proj.profiles?.avatar_url ? (
                     <img src={proj.profiles.avatar_url} alt="avatar" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
                   ) : (

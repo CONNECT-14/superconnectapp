@@ -233,7 +233,7 @@ export default function Followers() {
                 <div 
                   key={i} 
                   className="card-new"
-                  onClick={() => navigate(`/user/${f.follower_id}`)}
+                  onClick={() => navigate(`/profile/${f.follower_id}`)}
                 >
                   {f.profiles?.avatar_url ? (
                     <img src={f.profiles.avatar_url} alt="avatar" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px' }} />

@@ -98,7 +98,7 @@ function Layout() {
           <Route path="/messages" element={<Messages />} />
           <Route path="/following" element={<Following />} />
           <Route path="/followers" element={<Followers />} />
-          <Route path="/user/:id" element={<UserProfile />} />
+          <Route path="/profile/:identifier" element={<UserProfile />} />
           <Route path="/project/:id" element={<ProjectPage />} />
           <Route path="/project-hub" element={<ProjectHub />} />
           <Route path="/explore" element={<ExplorePage />} />

@@ -712,6 +712,10 @@ export default function Profile() {
   const [profileData, setProfileData] = useState(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [isEditUsernameValid, setIsEditUsernameValid] = useState(true);
+  const [isEditUsernameAvailable, setIsEditUsernameAvailable] = useState(null);
+  const [checkingEditUsername, setCheckingEditUsername] = useState(false);
   const [editAge, setEditAge] = useState("");
   const [editOccupation, setEditOccupation] = useState("");
   const [editSkills, setEditSkills] = useState([]);
@@ -743,7 +747,100 @@ export default function Profile() {
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
+  // Username prompt state
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [promptUsername, setPromptUsername] = useState("");
+  const [isPromptUsernameValid, setIsPromptUsernameValid] = useState(true);
+  const [isPromptUsernameAvailable, setIsPromptUsernameAvailable] = useState(null);
+  const [checkingPromptUsername, setCheckingPromptUsername] = useState(false);
+  const [savingPromptUsername, setSavingPromptUsername] = useState(false);
+
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const validatePromptUsername = async () => {
+      if (!promptUsername || promptUsername === profileData?.username) {
+        setIsPromptUsernameValid(true);
+        setIsPromptUsernameAvailable(true);
+        return;
+      }
+      const regex = /^[a-z0-9_.]{3,30}$/;
+      if (!regex.test(promptUsername)) {
+        setIsPromptUsernameValid(false);
+        setIsPromptUsernameAvailable(null);
+        return;
+      }
+      setIsPromptUsernameValid(true);
+      setCheckingPromptUsername(true);
+      
+      const { data } = await supabase.from('profiles').select('id').ilike('username', promptUsername).maybeSingle();
+      
+      setIsPromptUsernameAvailable(!data);
+      setCheckingPromptUsername(false);
+    };
+
+    const timer = setTimeout(() => {
+      if (showUsernamePrompt) validatePromptUsername();
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [promptUsername, showUsernamePrompt, profileData]);
+
+  const handleDismissPrompt = async () => {
+    setShowUsernamePrompt(false);
+    await supabase.from('profiles').update({ username_prompt_dismissed: true }).eq('id', user.id);
+  };
+
+  const handleSavePrompt = async () => {
+    if (!isPromptUsernameValid || isPromptUsernameAvailable === false) return;
+    setSavingPromptUsername(true);
+    const { error } = await supabase.from('profiles').update({ 
+      username: promptUsername, 
+      username_is_auto_generated: false 
+    }).eq('id', user.id);
+    
+    if (error) {
+      alert("Error saving username: " + error.message);
+    } else {
+      setProfileData(prev => ({ ...prev, username: promptUsername, username_is_auto_generated: false }));
+      setShowUsernamePrompt(false);
+    }
+    setSavingPromptUsername(false);
+  };
+
+  useEffect(() => {
+    const validateEditUsername = async () => {
+      if (!editUsername || editUsername === profileData?.username) {
+        setIsEditUsernameValid(true);
+        setIsEditUsernameAvailable(true);
+        return;
+      }
+      const regex = /^[a-z0-9_.]{3,30}$/;
+      if (!regex.test(editUsername)) {
+        setIsEditUsernameValid(false);
+        setIsEditUsernameAvailable(null);
+        return;
+      }
+      setIsEditUsernameValid(true);
+      setCheckingEditUsername(true);
+      
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('username', editUsername)
+        .neq('id', user.id)
+        .maybeSingle();
+      
+      setIsEditUsernameAvailable(!data);
+      setCheckingEditUsername(false);
+    };
+
+    const timer = setTimeout(() => {
+      if (isEditingProfile) validateEditUsername();
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [editUsername, isEditingProfile, profileData, user]);
 
   useEffect(() => {
     getUser();
@@ -767,9 +864,17 @@ export default function Profile() {
         if (profile) {
           setProfileData(profile);
           setEditName(profile.name || "");
+          setEditUsername(profile.username || "");
           setEditAge(profile.age || "");
           setEditOccupation(profile.occupation || "");
           setEditSkills(profile.skills || []);
+          
+          if (profile.username_is_auto_generated && !profile.username_prompt_dismissed) {
+             setShowUsernamePrompt(true);
+             setPromptUsername(profile.username || "");
+             setIsPromptUsernameValid(true);
+             setIsPromptUsernameAvailable(true);
+          }
         }
         
         await fetchProjects(user.id);
@@ -896,6 +1001,7 @@ export default function Profile() {
 
   const handleSaveProfile = async () => {
     if (!user) return;
+    if (!isEditUsernameValid || isEditUsernameAvailable === false) return;
     setSavingProfile(true);
 
     let avatarUrl = profileData?.avatar_url || null;
@@ -922,6 +1028,9 @@ export default function Profile() {
       .from("profiles")
       .update({
         name: editName,
+        username: editUsername,
+        username_is_auto_generated: false,
+        username_prompt_dismissed: true,
         age: editAge ? parseInt(editAge) : null,
         occupation: editOccupation,
         avatar_url: avatarUrl,
@@ -930,9 +1039,14 @@ export default function Profile() {
       .eq("id", user.id);
 
     if (error) {
-      alert("Error saving profile: " + error.message);
+      if (error.message.includes('23505') || error.message.toLowerCase().includes('unique')) {
+        setIsEditUsernameAvailable(false);
+      } else {
+        alert("Error saving profile: " + error.message);
+      }
     } else {
-      setProfileData({ ...profileData, name: editName, age: editAge, occupation: editOccupation, avatar_url: avatarUrl, skills: editSkills });
+      setProfileData({ ...profileData, name: editName, username: editUsername, age: editAge, occupation: editOccupation, avatar_url: avatarUrl, skills: editSkills });
+      setShowUsernamePrompt(false);
       setIsEditingProfile(false);
       setAvatarFile(null);
       setAvatarPreview(null);
@@ -1085,6 +1199,36 @@ export default function Profile() {
       <div className="profile-root">
         <BackgroundParticles variant="split" />
         <div className="profile-inner">
+          {showUsernamePrompt && (
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)', borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 20px rgba(124, 58, 237, 0.15)' }}>
+              <h3 style={{ marginBottom: '12px', fontSize: '1.2rem', color: '#fff' }}>Claim your username</h3>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.95rem' }}>We've added usernames to help people find you. Yours is currently <strong>@{profileData?.username}</strong> — want to customize it?</p>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
+                  <span style={{ color: 'var(--text-secondary)', marginRight: '8px' }}>@</span>
+                  <input 
+                    type="text" 
+                    value={promptUsername} 
+                    onChange={e => setPromptUsername(e.target.value.toLowerCase())} 
+                    style={{ background: 'transparent', border: 'none', color: '#fff', outline: 'none', flex: 1, fontSize: '1rem' }} 
+                  />
+                  {checkingPromptUsername && <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '8px' }}>Checking...</span>}
+                  {!checkingPromptUsername && isPromptUsernameValid && isPromptUsernameAvailable === true && <span style={{ color: '#10B981', fontWeight: 'bold', marginLeft: '8px' }}>✓</span>}
+                </div>
+                <button onClick={handleSavePrompt} disabled={!isPromptUsernameValid || isPromptUsernameAvailable === false || savingPromptUsername} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', fontWeight: 'bold', cursor: 'pointer', opacity: (!isPromptUsernameValid || isPromptUsernameAvailable === false || savingPromptUsername) ? 0.5 : 1 }}>
+                  {savingPromptUsername ? 'Saving...' : 'Save'}
+                </button>
+                <button onClick={handleDismissPrompt} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 20px', cursor: 'pointer' }}>
+                  Maybe later
+                </button>
+              </div>
+              
+              {!isPromptUsernameValid && promptUsername.length > 0 && <div style={{ color: '#EF4444', fontSize: '12px' }}>Must be 3-30 lowercase letters, numbers, underscores, or periods.</div>}
+              {isPromptUsernameValid && isPromptUsernameAvailable === false && <div style={{ color: '#EF4444', fontSize: '12px' }}>Username already taken.</div>}
+            </div>
+          )}
+          
           <div className="profile-header">
             <h2>My Profile</h2>
             <div className="dot" />
@@ -1133,6 +1277,24 @@ export default function Profile() {
                      <input type="file" accept="image/*" className="file-input-hidden" onChange={handleAvatarChange} />
                    </label>
                    <input className="form-field" placeholder="Name" value={editName} onChange={(e) => setEditName(e.target.value)} style={{ marginBottom: '8px' }} />
+                   
+                   <div style={{ marginBottom: '8px' }}>
+                     <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 16px' }}>
+                       <span style={{ color: 'var(--text-secondary)', marginRight: '8px', fontSize: '0.95rem' }}>@</span>
+                       <input 
+                         type="text" 
+                         placeholder="username"
+                         value={editUsername} 
+                         onChange={e => setEditUsername(e.target.value.toLowerCase())} 
+                         style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', flex: 1, fontSize: '0.95rem', fontFamily: 'Inter, sans-serif' }} 
+                       />
+                       {checkingEditUsername && <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '8px' }}>Checking...</span>}
+                       {!checkingEditUsername && isEditUsernameValid && isEditUsernameAvailable === true && editUsername !== profileData?.username && <span style={{ color: '#10B981', fontWeight: 'bold', marginLeft: '8px' }}>✓</span>}
+                     </div>
+                     {!isEditUsernameValid && editUsername.length > 0 && <div style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>Only lowercase letters, numbers, _ and . allowed, 3-30 characters</div>}
+                     {isEditUsernameValid && isEditUsernameAvailable === false && <div style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>Username already taken.</div>}
+                   </div>
+
                    <input className="form-field" type="number" placeholder="Age" value={editAge} onChange={(e) => setEditAge(e.target.value)} style={{ marginBottom: '8px' }} />
                    <input className="form-field" placeholder="Occupation" value={editOccupation} onChange={(e) => setEditOccupation(e.target.value)} style={{ marginBottom: '8px' }} />
                     
@@ -1176,8 +1338,8 @@ export default function Profile() {
                       <p className="skill-limit-text">{editSkills.length}/10 skills</p>
                     </div>
                     
-                   <div style={{ display: 'flex', gap: '8px' }}>
-                     <button className="btn-create" onClick={handleSaveProfile} disabled={savingProfile}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                     <button className="btn-create" onClick={handleSaveProfile} disabled={savingProfile || !isEditUsernameValid || isEditUsernameAvailable === false}>
                        {savingProfile ? "Saving..." : "Save"}
                      </button>
                      <button onClick={() => setIsEditingProfile(false)} style={{ background: 'transparent', border: '1px solid var(--border)', padding: '11px 22px', borderRadius: '7px', cursor: 'pointer', color: 'var(--text-primary)' }}>

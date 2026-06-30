@@ -285,7 +285,7 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
                   ) : (
                     <div className="grid-container">
                       {list.map((f, i) => (
-                        <div key={i} className="card-new" onClick={() => { onClose(); navigate("/user/" + f.follower_id); }}>
+                        <div key={i} className="card-new" onClick={() => { onClose(); navigate("/profile/" + f.follower_id); }}>
                           {f.profiles?.avatar_url ? (
                             <img src={f.profiles.avatar_url} alt="avatar" style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px' }} />
                           ) : (
@@ -318,7 +318,7 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
                   ) : (
                     <div className="grid-container">
                       {list.map((f, i) => (
-                        <div key={i} className="card-new" onClick={() => { onClose(); navigate("/user/" + f.following_id); }}>
+                        <div key={i} className="card-new" onClick={() => { onClose(); navigate("/profile/" + f.following_id); }}>
                           {f.profiles?.avatar_url ? (
                             <img src={f.profiles.avatar_url} alt="avatar" style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px' }} />
                           ) : (

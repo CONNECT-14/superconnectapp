@@ -404,9 +404,10 @@ const styles = `
 `;
 
 export default function UserProfile() {
-  const { id } = useParams();
+  const { identifier } = useParams();
   const navigate = useNavigate();
 
+  const [resolvedId, setResolvedId] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [projects, setProjects] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -428,7 +429,7 @@ export default function UserProfile() {
   useEffect(() => {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [identifier]);
 
   const init = async () => {
     const start = Date.now();
@@ -437,11 +438,14 @@ export default function UserProfile() {
       const user = session?.user;
       setCurrentUser(user);
 
-      await fetchUser();
-      await fetchProjects();
-      await fetchUserPosts();
-      await fetchFollowStats();
-      if (user) await checkFollowStatus(user.id);
+      const rId = await fetchUser();
+      if (!rId) return;
+      setResolvedId(rId);
+
+      await fetchProjects(rId);
+      await fetchUserPosts(rId);
+      await fetchFollowStats(rId);
+      if (user) await checkFollowStatus(user.id, rId);
       
     } catch(err) {
       console.error(err);
@@ -453,43 +457,69 @@ export default function UserProfile() {
   };
 
   const fetchUser = async () => {
-    const { data } = await supabase
+    let { data } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", id)
+      .ilike("username", identifier)
       .single();
+    
+    if (!data) {
+      const { data: byName } = await supabase
+        .from("profiles")
+        .select("*")
+        .ilike("name", identifier)
+        .single();
+      if (byName) {
+        navigate(`/profile/${byName.username}`, { replace: true });
+        return null;
+      }
+    }
+
+    if (!data && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
+        const { data: byId } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", identifier)
+          .single();
+        if (byId) {
+          navigate(`/profile/${byId.username}`, { replace: true });
+          return null;
+        }
+    }
+
     setUserProfile(data);
+    return data?.id;
   };
 
-  const fetchProjects = async () => {
+  const fetchProjects = async (userId) => {
     const { data } = await supabase
       .from("projects")
       .select("*")
-      .eq("user_id", id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
     setProjects(data || []);
   };
 
-  const fetchFollowStats = async () => {
+  const fetchFollowStats = async (userId) => {
     const { count: followers } = await supabase
       .from("follows")
       .select("*", { count: "exact", head: true })
-      .eq("following_id", id);
+      .eq("following_id", userId);
 
     const { count: following } = await supabase
       .from("follows")
       .select("*", { count: "exact", head: true })
-      .eq("follower_id", id);
+      .eq("follower_id", userId);
 
     setFollowersCount(followers || 0);
     setFollowingCount(following || 0);
   };
 
-  const fetchUserPosts = async () => {
+  const fetchUserPosts = async (userId) => {
     const { data, error } = await supabase
       .from("posts")
       .select(`*, profiles(name, avatar_url)`)
-      .eq("user_id", id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -549,29 +579,29 @@ export default function UserProfile() {
     }
   };
 
-  const checkFollowStatus = async (currentUserId) => {
+  const checkFollowStatus = async (currentUserId, targetId) => {
     const { data } = await supabase
       .from("follows")
       .select("*")
       .eq("follower_id", currentUserId)
-      .eq("following_id", id);
+      .eq("following_id", targetId || resolvedId);
     setIsFollowingUser(data?.length > 0);
   };
 
   const handleFollowUser = async () => {
-    if (!currentUser) return;
+    if (!currentUser || !resolvedId) return;
     if (isFollowingUser) {
-      await supabase.from("follows").delete().match({ follower_id: currentUser.id, following_id: id });
+      await supabase.from("follows").delete().match({ follower_id: currentUser.id, following_id: resolvedId });
       setIsFollowingUser(false);
       setFollowersCount(prev => prev - 1);
     } else {
-      await supabase.from("follows").insert({ follower_id: currentUser.id, following_id: id });
+      await supabase.from("follows").insert({ follower_id: currentUser.id, following_id: resolvedId });
       setIsFollowingUser(true);
       setFollowersCount(prev => prev + 1);
       
       // Add notification
       await supabase.from("notifications").insert({
-        user_id: id,
+        user_id: resolvedId,
         type: 'follow',
         from_user_id: currentUser.id,
         message: 'started following you'
@@ -593,13 +623,16 @@ export default function UserProfile() {
       <div className="profile-root">
         <div className="profile-inner">
           <div className="profile-header">
-            <h2>{userProfile?.name || "User Profile"}</h2>
-            {currentUser && currentUser.id !== id && (
+            <div>
+              <h2>{userProfile?.name || "User Profile"}</h2>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '15px', marginTop: '6px', fontWeight: '500' }}>@{userProfile?.username}</div>
+            </div>
+            {currentUser && currentUser.id !== resolvedId && (
               <button 
                 className={`btn-follow-user ${isFollowingUser ? "active" : ""}`}
                 onClick={handleFollowUser}
               >
-                {isFollowingUser ? "Unfollow" : "Follow"}
+                {isFollowingUser ? "Following" : "Follow"}
               </button>
             )}
           </div>
@@ -775,7 +808,7 @@ export default function UserProfile() {
         isOpen={!!modalType} 
         onClose={() => setModalType(null)} 
         type={modalType} 
-        userId={id} 
+        userId={resolvedId} 
       />
     </>
   );

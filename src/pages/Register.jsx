@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import BackgroundParticles from "../components/BackgroundParticles";
@@ -6,12 +6,45 @@ import './Login.css'
 
 const Register = () => {
   const [fullName, setFullName] = useState('')
+  const [username, setUsername] = useState('')
+  const [isUsernameValid, setIsUsernameValid] = useState(false)
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState(null)
+  const [checkingUsername, setCheckingUsername] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [message, setMessage] = useState('')
 
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const validateUsername = async () => {
+      if (!username) {
+        setIsUsernameValid(false);
+        setIsUsernameAvailable(null);
+        return;
+      }
+      const regex = /^[a-z0-9_.]{3,30}$/;
+      if (!regex.test(username)) {
+        setIsUsernameValid(false);
+        setIsUsernameAvailable(null);
+        return;
+      }
+      setIsUsernameValid(true);
+      setCheckingUsername(true);
+      
+      const { data } = await supabase.from('profiles').select('id').ilike('username', username).maybeSingle();
+      
+      setIsUsernameAvailable(!data);
+      setCheckingUsername(false);
+    };
+
+    const timer = setTimeout(() => {
+      validateUsername();
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [username]);
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -21,18 +54,33 @@ const Register = () => {
         return;
     }
 
+    if (!isUsernameValid) {
+        setMessage("Username format is invalid. Must be 3-30 lowercase letters, numbers, underscores, or periods.");
+        return;
+    }
+    if (isUsernameAvailable === false) {
+        setMessage("Username already taken.");
+        return;
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
+          username: username,
+          username_is_auto_generated: false
         }
       }
     })
 
     if (error) {
-      setMessage(error.message)
+      if (error.message.includes("23505") || error.message.toLowerCase().includes("unique constraint")) {
+        setMessage("Username already taken")
+      } else {
+        setMessage(error.message)
+      }
     } else {
       setMessage("Registration successful 🎉 Please check your email to verify.")
       setTimeout(() => navigate("/login"), 3000)
@@ -88,6 +136,23 @@ const Register = () => {
               onChange={(e) => setFullName(e.target.value)}
               required
             />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <div className="input-group" style={{ marginBottom: '4px' }}>
+              <span className="input-icon">@</span>
+              <input
+                type="text"
+                placeholder="Username (e.g., alex_dev)"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                required
+              />
+              {checkingUsername && <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>...</span>}
+              {!checkingUsername && isUsernameValid && isUsernameAvailable === true && <span style={{ color: '#10B981', fontWeight: 'bold' }}>✓</span>}
+            </div>
+            {!isUsernameValid && username.length > 0 && <div style={{ color: '#EF4444', fontSize: '12px' }}>Must be 3-30 chars (letters, numbers, _, .)</div>}
+            {isUsernameValid && isUsernameAvailable === false && <div style={{ color: '#EF4444', fontSize: '12px' }}>Username already taken</div>}
           </div>
 
           <div className="input-group">

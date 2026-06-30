@@ -308,7 +308,7 @@ export default function ExplorePage() {
                     <div className="rs-user-placeholder">{u.name ? u.name.charAt(0).toUpperCase() : "U"}</div>
                   )}
                   <div className="rs-user-info">
-                    <div className="rs-user-name" onClick={() => navigate(`/user/${u.id}`)} style={{cursor:'pointer'}}>{u.name || "User"}</div>
+                    <div className="rs-user-name" onClick={() => navigate(`/profile/${u.username || u.id}`)} style={{cursor:'pointer'}}>{u.name || "User"}</div>
                     <div className="rs-user-occ">{u.occupation || "Member"}</div>
                   </div>
                   {currentUser && (

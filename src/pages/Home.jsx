@@ -404,6 +404,7 @@ export default function Home() {
   // Search & Filter State
   const [searchText, setSearchText] = useState("");
   const [searchTrigger, setSearchTrigger] = useState("");
+  const [userSearchResults, setUserSearchResults] = useState([]);
   const [category, setCategory] = useState("All");
   const [topic, setTopic] = useState("All");
   const [sort, setSort] = useState("latest");
@@ -488,6 +489,18 @@ export default function Home() {
   const handleSearch = () => {
     setSearchTrigger(searchText);
   };
+
+  useEffect(() => {
+    if (!searchTrigger) {
+      setUserSearchResults([]);
+      return;
+    }
+    const fetchUsers = async () => {
+      const { data } = await supabase.rpc('search_profiles', { search_query: searchTrigger });
+      setUserSearchResults(data || []);
+    };
+    fetchUsers();
+  }, [searchTrigger]);
 
   const handleRefresh = () => setRefresh((prev) => !prev);
 
@@ -578,7 +591,7 @@ export default function Home() {
                           <div className="rs-user-placeholder">{u.name ? u.name.charAt(0).toUpperCase() : "U"}</div>
                         )}
                         <div className="rs-user-info">
-                          <div className="rs-user-name" onClick={() => navigate(`/user/${u.id}`)} style={{cursor:'pointer'}}>{u.name || "User"}</div>
+                          <div className="rs-user-name" onClick={() => navigate(`/profile/${u.username || u.id}`)} style={{cursor:'pointer'}}>{u.name || "User"}</div>
                           <div className="rs-user-occ">{u.occupation || "Member"}</div>
                         </div>
                         <button className="rs-btn" onClick={() => handleFollowUser(u.id)}>Follow</button>
@@ -619,7 +632,7 @@ export default function Home() {
                 )}
 
                 <div className="ls-heading" style={{marginTop:'24px'}}>DISCOVER</div>
-                <button className="btn-outline-full" onClick={() => { setFeedType('All'); window.scrollTo(0, 0); }}>
+                <button className="btn-outline-full" onClick={() => navigate('/explore')}>
                   Explore All Posts
                 </button>
               </>
@@ -635,7 +648,7 @@ export default function Home() {
             <div className="search-filters-container">
               <div className="search-bar">
                 <input
-                  placeholder="Search posts by username..."
+                  placeholder="Search posts or users..."
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
                   onKeyDown={(e) => {
@@ -673,6 +686,29 @@ export default function Home() {
                 </select>
               </div>
             </div>
+
+            {userSearchResults.length > 0 && (
+              <div className="user-search-results" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Users</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {userSearchResults.map(u => (
+                    <div key={u.id} onClick={() => navigate(`/profile/${u.username}`)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px', borderRadius: '8px', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      {u.avatar_url ? (
+                        <img src={u.avatar_url} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>
+                          {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ color: '#fff', fontWeight: '600' }}>{u.name || "User"}</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>@{u.username} {u.bio ? `• ${u.bio.substring(0, 40)}${u.bio.length > 40 ? '...' : ''}` : ''}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="feed-tabs">
               <button 
