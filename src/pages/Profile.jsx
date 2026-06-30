@@ -1385,7 +1385,7 @@ export default function Profile() {
                      </div>
                      <div style={{ width: '1px', height: '32px', background: 'var(--border)' }}></div>
                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                       <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{postsCount}</span>
+                       <span style={{ color: 'var(--text-primary)', fontWeight: 'bold', fontSize: '18px' }}>{postsCount}</span>
                        <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Posts</span>
                      </div>
                    </div>
