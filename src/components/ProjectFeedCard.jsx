@@ -140,7 +140,7 @@ export default function ProjectFeedCard({ project }) {
               cursor: 'pointer'
             }}
           >
-            {following ? 'Following' : 'Follow'}
+            {following ? 'Tracking' : 'Track'}
           </button>
         )}
       </div>

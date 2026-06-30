@@ -16,6 +16,7 @@ import ProjectPage from "./pages/ProjectPage";
 import ProjectHub from "./pages/ProjectHub";
 import ResetPassword from "./pages/ResetPassword";
 import ExplorePage from "./pages/ExplorePage";
+import PostDetail from "./pages/PostDetail";
 
 // Components
 import Sidebar from "./components/Sidebar";
@@ -102,6 +103,7 @@ function Layout() {
           <Route path="/project/:id" element={<ProjectPage />} />
           <Route path="/project-hub" element={<ProjectHub />} />
           <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/post/:postId" element={<PostDetail />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
         </Routes>

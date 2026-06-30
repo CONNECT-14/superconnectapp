@@ -620,7 +620,7 @@ export default function Home() {
                         <div className="rs-project-info">
                           <div className="rs-project-name" onClick={() => navigate(`/project/${p.id}`)} style={{cursor:'pointer'}}>{p.title}</div>
                         </div>
-                        <button className="rs-btn" onClick={() => handleFollowProject(p.id)}>Follow</button>
+                        <button className="rs-btn" onClick={() => handleFollowProject(p.id)}>Track</button>
                       </div>
                     ))}
                     {trendingProjects.length > 0 && (

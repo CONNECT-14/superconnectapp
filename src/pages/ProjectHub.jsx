@@ -545,7 +545,7 @@ export default function ProjectHub() {
         <div className="page-inner">
           <div className="page-header">
             <h2>Project Hub</h2>
-            <p className="page-subtitle">Discover and follow projects</p>
+            <p className="page-subtitle">Discover and track projects</p>
           </div>
 
           <div className="controls-row">
@@ -624,7 +624,7 @@ export default function ProjectHub() {
                     className={`btn-follow ${followStatus[proj.id] ? "active" : ""}`}
                     onClick={(e) => followProject(e, proj.id)}
                   >
-                    {followStatus[proj.id] ? "Following" : "Follow Project"}
+                    {followStatus[proj.id] ? "Tracking" : "Track"}
                   </button>
                 )}
                 </div>

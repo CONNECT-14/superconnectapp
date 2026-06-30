@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import "./PostCard.css";
 
-export default function PostCard({ post, onDelete }) {
+export default function PostCard({ post, onDelete, isDetail = false }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
   const [liked, setLiked] = useState(false);
@@ -237,8 +239,14 @@ export default function PostCard({ post, onDelete }) {
 
   // ================= UI =================
 
+  const handleCardClick = () => {
+    if (!isDetail) {
+      navigate(`/post/${post.id}`);
+    }
+  };
+
   return (
-    <div className="post-card">
+    <div className={`post-card ${!isDetail ? 'clickable' : 'borderless'}`} onClick={handleCardClick}>
 
       {/* HEADER */}
       <div className="post-header">
@@ -254,13 +262,13 @@ export default function PostCard({ post, onDelete }) {
         </div>
 
         {user && user.id !== post.user_id && (
-          <button className="follow-btn" onClick={handleFollow}>
+          <button className="follow-btn" onClick={(e) => { e.stopPropagation(); handleFollow(); }}>
             {following ? "Following" : "Follow"}
           </button>
         )}
 
         {user && user.id === post.user_id && (
-          <button className="delete-btn" onClick={handleDelete}>
+          <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDelete(); }}>
             Delete
           </button>
         )}
@@ -288,19 +296,21 @@ export default function PostCard({ post, onDelete }) {
 
       {/* LIKE */}
       <div className="post-actions">
-        <button className="like-btn" onClick={handleLike}>
+        <button className="like-btn" onClick={(e) => { e.stopPropagation(); handleLike(); }}>
           {liked ? "❤️" : "🤍"} {likeCount}
         </button>
       </div>
 
       {/* COMMENTS */}
-      <button className="view-comments-btn" onClick={toggleComments}>
-        💬 {showComments ? "Hide comments" : "Show comments"}
-      </button>
+      {!isDetail && (
+        <button className="view-comments-btn" onClick={(e) => { e.stopPropagation(); toggleComments(); }}>
+          💬 {showComments ? "Hide comments" : "Show comments"}
+        </button>
+      )}
 
-      {showComments && (
+      {!isDetail && showComments && (
         <>
-          <div className="comments-container">
+          <div className="comments-container" onClick={(e) => e.stopPropagation()}>
             {comments.slice(0, 4).map((c) => (
               <div key={c.id} className="comment-item">
                 <span className="comment-user" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -318,13 +328,13 @@ export default function PostCard({ post, onDelete }) {
             ))}
           </div>
 
-          <div className="comment-box">
+          <div className="comment-box" onClick={(e) => e.stopPropagation()}>
             <input
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Write a comment..."
             />
-            <button onClick={handleComment}>Post</button>
+            <button onClick={(e) => { e.stopPropagation(); handleComment(); }}>Post</button>
           </div>
         </>
       )}

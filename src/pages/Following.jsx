@@ -281,7 +281,7 @@ export default function Following() {
         <div className="page-inner">
           <div className="page-header" style={{ flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
             <h2>Following</h2>
-            <p className="page-subtitle">People and projects you follow</p>
+            <p className="page-subtitle">People you follow and projects you track</p>
           </div>
 
           {/* 🔥 USERS */}
@@ -347,7 +347,7 @@ export default function Following() {
                   <div style={{ fontWeight: 'bold', fontSize: '1rem' }}>{p.project?.title || "Project"}</div>
                   <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>by {p.creator?.name || "User"}</div>
                   <button className="unfollow-btn" onClick={(e) => unfollowProject(e, p.project_id)}>
-                    Unfollow Project
+                    Untrack Project
                   </button>
                 </div>
               ))}

@@ -338,7 +338,7 @@ export default function ExplorePage() {
                     <div className="rs-user-occ" style={{ fontSize: '11px' }}>{p.status || 'Active'}</div>
                   </div>
                   {currentUser && (
-                    <button className="rs-btn" onClick={() => handleFollowProject(p.id)} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--ink)' }}>Follow</button>
+                    <button className="rs-btn" onClick={() => handleFollowProject(p.id)} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--ink)' }}>Track</button>
                   )}
                 </div>
               ))

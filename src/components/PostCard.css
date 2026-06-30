@@ -9,7 +9,11 @@
   transition: all 0.2s ease;
 }
 
-.post-card:hover {
+.post-card.clickable {
+  cursor: pointer;
+}
+
+.post-card.clickable:hover {
   transform: translateY(-2px);
   border-color: var(--accent);
   box-shadow: 0 8px 24px rgba(124,58,237,0.1);
@@ -257,4 +261,12 @@
 
 .delete-btn:hover {
   color: #EF4444;
+}
+
+.post-card.borderless {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-bottom: 0;
+  box-shadow: none;
 }

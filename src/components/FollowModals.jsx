@@ -359,7 +359,7 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
                           <div style={{ color: '#A1A1AA', fontSize: '11px', marginTop: '4px' }}>by {p.creator?.name || "User"}</div>
                           {currentUser && userId === currentUser.id && (
                             <button className="action-btn unfollow-btn" onClick={(e) => unfollowProject(e, p.project_id)}>
-                              Unfollow
+                              Untrack
                             </button>
                           )}
                         </div>
