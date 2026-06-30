@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { HashRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { supabase, wasRecoveryDetected, clearRecoveryFlag } from "./supabaseClient";
 
@@ -30,6 +30,11 @@ function Layout() {
   const navigate = useNavigate();
   const showNavbar = !NO_NAVBAR_ROUTES.includes(location.pathname);
 
+  // Show a loading overlay while Supabase handles the initial OAuth redirect hash
+  const [isLoadingAuth, setIsLoadingAuth] = useState(
+    window.location.hash.includes("access_token=")
+  );
+
   useEffect(() => {
     // Local flag shared by both event handlers in this closure.
     // This prevents SIGNED_IN from overriding PASSWORD_RECOVERY in the
@@ -40,25 +45,36 @@ function Layout() {
     if (wasRecoveryDetected()) {
       isRecovery = true;
       navigate("/reset-password");
+      setIsLoadingAuth(false);
     }
 
     // Check 2: Does the URL hash still contain recovery tokens?
     if (!isRecovery && window.location.hash.includes('type=recovery')) {
       isRecovery = true;
       navigate("/reset-password");
+      setIsLoadingAuth(false);
     }
 
     // Pages that should redirect to /home after a successful sign-in.
     // All other app pages (profile, explore, project, etc.) must stay as-is on refresh.
     const PUBLIC_AUTH_ROUTES = ["/", "/login", "/register"];
 
+    // Check initial session right away for immediate navigation (fixes OAuth redirect delay)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && PUBLIC_AUTH_ROUTES.includes(location.pathname)) {
+        navigate("/home");
+      }
+      setIsLoadingAuth(false);
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         isRecovery = true;
         navigate("/reset-password");
+        setIsLoadingAuth(false);
         return;
       }
-      if (event === "SIGNED_IN") {
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
         // If we're in a recovery flow, DO NOT redirect to /home.
         const currentUrl = window.location.href;
         if (
@@ -67,14 +83,16 @@ function Layout() {
           currentUrl.includes("reset-password") ||
           currentUrl.includes("type=recovery")
         ) {
+          setIsLoadingAuth(false);
           return;
         }
         // Only redirect to /home if the user is currently on a public/auth page.
         // On all other pages (e.g. /profile, /explore, /project/:id), stay put.
-        if (PUBLIC_AUTH_ROUTES.includes(location.pathname)) {
+        if (session && PUBLIC_AUTH_ROUTES.includes(location.pathname)) {
           navigate("/home");
         }
       }
+      setIsLoadingAuth(false);
     });
 
     return () => {
@@ -83,6 +101,25 @@ function Layout() {
       if (isRecovery) clearRecoveryFlag();
     };
   }, [navigate, location.pathname]);
+
+  if (isLoadingAuth) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#0F0F11' }}>
+        <style>{`
+          @keyframes appSpin { to { transform: rotate(360deg); } }
+          .app-loading-spinner {
+            width: 40px; height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: #7C3AED;
+            border-radius: 50%;
+            animation: appSpin 1s linear infinite;
+          }
+        `}</style>
+        <div className="app-loading-spinner"></div>
+      </div>
+    );
+  }
+
 
   return (
     <>

@@ -1,17 +1,7 @@
 /* =========================
    PAGE BACKGROUND
 ========================= */
-:root {
-  --bg-app: #0F0F11;
-  --bg-card: #1A1A1F;
-  --border: #2A2A2F;
-  --text-primary: #F4F4F5;
-  --text-secondary: #A1A1AA;
-  --accent: #7C3AED;
-  --accent-hover: #6D28D9;
-  --shadow: 0 12px 40px rgba(0,0,0,0.3);
-  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
+
 
 .login-page {
   min-height: 100vh;
@@ -61,7 +51,7 @@
 .login-header h1 {
   font-family: 'Inter', sans-serif;
   margin-bottom: 8px;
-  color: #F4F4F5;
+  color: var(--text-primary);
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -103,12 +93,12 @@
 }
 
 .social-btn.google {
-  background: #2A2A2F;
+  background: var(--bg-card);
 }
 
 .social-btn.github {
   background: var(--text-primary);
-  color: var(--bg-app);
+  color: var(--bg-card);
   border-color: var(--text-primary);
 }
 
@@ -118,12 +108,12 @@
 }
 
 .social-btn.google:hover {
-  background: #35353A;
-  border-color: #4A4A4F;
+  background: var(--bg-app);
+  border-color: var(--text-secondary);
 }
 
 .social-btn.github:hover {
-  background: #d4d4d8;
+  background: var(--text-secondary);
 }
 
 /* =========================

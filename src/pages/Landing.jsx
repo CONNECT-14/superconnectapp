@@ -1,7 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useCallback } from "react";
+import { useCallback, useState, useEffect } from "react";
 import Particles from "react-tsparticles";
 import { loadSlim } from "tsparticles-slim";
+import ThemeToggle from "../components/ThemeToggle";
 import './Landing.css'
 
 const Landing = () => {
@@ -11,8 +12,26 @@ const Landing = () => {
         await loadSlim(engine);
     }, []);
 
+    // Track theme so particles and inline styles can react
+    const [isLightMode, setIsLightMode] = useState(
+        () => document.documentElement.classList.contains("light-mode") || localStorage.getItem("theme") === "light"
+    );
+
+    useEffect(() => {
+        const observer = new MutationObserver(() => {
+            setIsLightMode(document.documentElement.classList.contains("light-mode"));
+        });
+        observer.observe(document.documentElement, { attributes: true });
+        return () => observer.disconnect();
+    }, []);
+
+    const particleColor = isLightMode ? "#111827" : "#ffffff";
+    const particleOpacity = isLightMode ? 0.25 : 0.6;
+    const linkOpacity = isLightMode ? 0.08 : 0.3;
+
     return (
-        <div className="home" style={{ backgroundColor: "#0F0F11" }}>
+        <div className="home">
+            <ThemeToggle />
             
             <div style={{ position: "relative", minHeight: "100vh" }}>
                 <Particles
@@ -46,13 +65,13 @@ const Landing = () => {
                         },
                         particles: {
                             color: {
-                                value: "#ffffff",
+                                value: particleColor,
                             },
                             links: {
-                                color: "#ffffff",
+                                color: particleColor,
                                 distance: 150,
                                 enable: true,
-                                opacity: 0.3,
+                                opacity: linkOpacity,
                                 width: 1,
                             },
                             move: {
@@ -68,7 +87,7 @@ const Landing = () => {
                                 value: 120,
                             },
                             opacity: {
-                                value: 0.6,
+                                value: particleOpacity,
                             },
                             shape: {
                                 type: "circle",
@@ -84,7 +103,7 @@ const Landing = () => {
                 <div style={{ position: "relative", zIndex: 1, height: "100%", display: "flex", flexDirection: "column" }}>
                     <nav className="landing-navbar">
                         <Link to="/" className="landing-brand">
-                            <img src={process.env.PUBLIC_URL + "/assests/logo-dark.png"} alt="Brain Logo" />
+                            <img src={process.env.PUBLIC_URL + (isLightMode ? "/assests/logo-light.png" : "/assests/logo-dark.png")} alt="Brain Logo" />
                             <span className="brand-text">Connect</span>
                         </Link>
                         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
@@ -101,7 +120,7 @@ const Landing = () => {
                         <div className="hero-content animate-slideUp">
                             <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginBottom: '24px'}}>
                                 <img 
-                                    src={process.env.PUBLIC_URL + "/assests/logo-dark.png"} 
+                                    src={process.env.PUBLIC_URL + (isLightMode ? "/assests/logo-light.png" : "/assests/logo-dark.png")} 
                                     alt="Brain Logo" 
                                     className="hero-logo-large" 
                                     style={{ marginBottom: '0', width: '80px', height: '80px', objectFit: 'contain' }}
@@ -131,13 +150,15 @@ const Landing = () => {
                     left: 0,
                     width: "100%",
                     height: "150px",
-                    background: "linear-gradient(to bottom, transparent, #0F0F11)",
+                    background: isLightMode
+                        ? "linear-gradient(to bottom, transparent, #F3F4F6)"
+                        : "linear-gradient(to bottom, transparent, #0F0F11)",
                     zIndex: 2,
                     pointerEvents: "none"
                 }}></div>
             </div>
 
-            <div style={{ position: "relative", zIndex: 3, backgroundColor: "#0F0F11" }}>
+            <div style={{ position: "relative", zIndex: 3, backgroundColor: isLightMode ? "#F3F4F6" : "#0F0F11" }}>
                 <section className="features">
                     <h2 className="features-title">Why Connect?</h2>
                     <div className="features-grid">

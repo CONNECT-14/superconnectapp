@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import BackgroundParticles from "../components/BackgroundParticles";
+import ThemeToggle from "../components/ThemeToggle";
 import './Login.css'
 
 const Register = () => {
@@ -102,6 +103,7 @@ const Register = () => {
 
   return (
     <div className="login-page" style={{ position: "relative", overflow: "hidden" }}>
+      <ThemeToggle />
       <BackgroundParticles />
       <div className="login-card animate-slideUp" style={{ position: "relative", zIndex: 1 }}>
 

@@ -4,15 +4,6 @@
 
 :root {
   --nav-height: 80px;
-  --bg-app: #0F0F11;
-  --bg-card: #1A1A1F;
-  --border: #2A2A2F;
-  --text-primary: #F4F4F5;
-  --text-secondary: #A1A1AA;
-  --accent: #7C3AED;
-  --accent-hover: #6D28D9;
-  --shadow: 0 12px 40px rgba(0,0,0,0.3);
-  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .home {
@@ -54,7 +45,7 @@
     font-family: 'Inter', sans-serif;
     font-size: 1.6rem;
     font-weight: 700;
-    color: #F4F4F5;
+    color: var(--text-primary);
     letter-spacing: -0.02em;
     line-height: 1;
     text-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
@@ -317,7 +308,7 @@
     font-family: 'Inter', sans-serif;
     font-size: 28px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-primary);
     text-align: center;
     margin-bottom: 48px;
 }
@@ -326,7 +317,7 @@
     padding: 32px 20px;
     text-align: center;
     border-top: 1px solid var(--border);
-    background: #0F0F11;
+    background: var(--bg-card);
 }
 
 .landing-footer p {
