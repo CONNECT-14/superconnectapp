@@ -88,9 +88,10 @@ const styles = `
     gap: 12px;
     padding: 8px;
     border-radius: 8px;
-    transition: background 0.2s;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
   }
-  .rs-user:hover { background: var(--bg-card); }
+  .rs-user:hover { background: rgba(124, 58, 237, 0.08); }
   .rs-user img, .rs-user-placeholder {
     width: 36px;
     height: 36px;

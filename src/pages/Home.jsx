@@ -692,7 +692,7 @@ export default function Home() {
                 <h3 style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Users</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {userSearchResults.map(u => (
-                    <div key={u.id} onClick={() => navigate(`/profile/${u.username}`)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px', borderRadius: '8px', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <div key={u.id} onClick={() => navigate(`/profile/${u.username}`)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px', borderRadius: '8px', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(124, 58, 237, 0.08)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                       {u.avatar_url ? (
                         <img src={u.avatar_url} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
                       ) : (
@@ -701,7 +701,7 @@ export default function Home() {
                         </div>
                       )}
                       <div>
-                        <div style={{ color: '#fff', fontWeight: '600' }}>{u.name || "User"}</div>
+                        <div style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{u.name || "User"}</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>@{u.username} {u.bio ? `• ${u.bio.substring(0, 40)}${u.bio.length > 40 ? '...' : ''}` : ''}</div>
                       </div>
                     </div>

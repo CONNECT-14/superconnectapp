@@ -17,8 +17,8 @@ const styles = `
     padding: 24px;
   }
   .modal-content {
-    background: #1A1A1F;
-    border: 1px solid #2A2A2F;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 12px;
     width: 100%;
     max-width: 600px;
@@ -27,7 +27,7 @@ const styles = `
     padding: 24px;
     position: relative;
     font-family: 'Inter', sans-serif;
-    color: #F4F4F5;
+    color: var(--text-primary);
   }
   .modal-close {
     position: absolute;
@@ -35,7 +35,7 @@ const styles = `
     right: 16px;
     background: transparent;
     border: none;
-    color: #A1A1AA;
+    color: var(--text-secondary);
     font-size: 20px;
     cursor: pointer;
     line-height: 1;
@@ -43,8 +43,8 @@ const styles = `
     border-radius: 4px;
   }
   .modal-close:hover {
-    color: #F4F4F5;
-    background: rgba(255,255,255,0.1);
+    color: var(--text-primary);
+    background: var(--border);
   }
   .modal-title {
     font-size: 24px;
@@ -58,8 +58,8 @@ const styles = `
     gap: 16px;
   }
   .card-new {
-    background: #111114;
-    border: 1px solid #2A2A2F;
+    background: var(--bg-app);
+    border: 1px solid var(--border);
     border-radius: 12px;
     padding: 16px;
     display: flex;
@@ -101,14 +101,14 @@ const styles = `
   .section-label {
     font-size: 16px;
     font-weight: bold;
-    color: white;
+    color: var(--text-primary);
     text-transform: uppercase;
     margin: 24px 0 16px;
-    border-left: 3px solid #7C3AED;
+    border-left: 3px solid var(--accent);
     padding-left: 8px;
   }
   .empty-msg {
-    color: #A1A1AA;
+    color: var(--text-secondary);
     font-size: 0.9rem;
     font-style: italic;
   }
@@ -294,7 +294,7 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
                             </div>
                           )}
                           <div style={{ fontWeight: '600', fontSize: '1rem' }}>{f.profiles?.name || "User"}</div>
-                          <div style={{ color: '#A1A1AA', fontSize: '12px', marginTop: '4px' }}>{f.profiles?.occupation || "Member"}</div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '4px' }}>{f.profiles?.occupation || "Member"}</div>
                           {currentUser && currentUser.id !== f.follower_id && (
                             <button 
                               className={"action-btn " + (myFollowing.includes(f.follower_id) ? "unfollow-btn" : "")} 
@@ -327,7 +327,7 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
                             </div>
                           )}
                           <div style={{ fontWeight: '600', fontSize: '1rem' }}>{f.profiles?.name || "User"}</div>
-                          <div style={{ color: '#A1A1AA', fontSize: '12px', marginTop: '4px' }}>{f.profiles?.occupation || "Member"}</div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '4px' }}>{f.profiles?.occupation || "Member"}</div>
                           {currentUser && currentUser.id !== f.following_id && (
                             <button 
                               className={"action-btn " + (myFollowing.includes(f.following_id) ? "unfollow-btn" : "")} 
@@ -356,7 +356,7 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
                             </div>
                           )}
                           <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{p.project?.title || "Project"}</div>
-                          <div style={{ color: '#A1A1AA', fontSize: '11px', marginTop: '4px' }}>by {p.creator?.name || "User"}</div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '4px' }}>by {p.creator?.name || "User"}</div>
                           {currentUser && userId === currentUser.id && (
                             <button className="action-btn unfollow-btn" onClick={(e) => unfollowProject(e, p.project_id)}>
                               Untrack

@@ -419,7 +419,7 @@ export default function ProjectHub() {
   const fetchProjects = async (currentUser, start = Date.now()) => {
     const { data: projectsData } = await supabase
       .from("projects")
-      .select(`*, profiles(name, avatar_url)`)
+      .select(`*, profiles(name, avatar_url, username)`)
       .order("created_at", { ascending: false });
 
     const { data: follows } = await supabase

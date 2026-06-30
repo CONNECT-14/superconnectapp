@@ -378,7 +378,7 @@ export default function Messages() {
 
     const { data: profiles, error } = await supabase
       .from("profiles")
-      .select("id, name, avatar_url")
+      .select("id, name, avatar_url, username")
       .in("id", uniqueIds);
 
     if (error) {
@@ -475,13 +475,18 @@ export default function Messages() {
                     }}
                   >
                     {u.avatar_url ? (
-                      <img src={u.avatar_url} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+                      <img src={u.avatar_url} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                     ) : (
-                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
                         {u.name ? u.name.charAt(0).toUpperCase() : "U"}
                       </div>
                     )}
-                    {u.name || "User"}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontWeight: '500', lineHeight: 1.2 }}>{u.name || "User"}</span>
+                      {u.username && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>@{u.username}</span>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
@@ -501,7 +506,12 @@ export default function Messages() {
                       {selectedUser.name ? selectedUser.name.charAt(0).toUpperCase() : "U"}
                     </div>
                   )}
-                  <h3>{selectedUser.name}</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={{ margin: 0, lineHeight: 1.2 }}>{selectedUser.name}</h3>
+                    {selectedUser.username && (
+                      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '2px' }}>@{selectedUser.username}</span>
+                    )}
+                  </div>
                   <span className="lock-badge">🔒 End-to-end encrypted</span>
                 </div>
 

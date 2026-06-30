@@ -904,7 +904,7 @@ export default function Profile() {
   const fetchMyPosts = async (userId) => {
     const { data, error } = await supabase
       .from("posts")
-      .select(`*, profiles(name, avatar_url)`)
+      .select(`*, profiles(name, avatar_url, username)`)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -959,7 +959,7 @@ export default function Profile() {
   const fetchPostComments = async (postId) => {
     const { data } = await supabase
       .from("comments")
-      .select(`*, profiles(name, avatar_url)`)
+      .select(`*, profiles(name, avatar_url, username)`)
       .eq("post_id", postId)
       .order("created_at", { ascending: false });
     setPostComments(prev => ({ ...prev, [postId]: data || [] }));
@@ -1201,17 +1201,17 @@ export default function Profile() {
         <div className="profile-inner">
           {showUsernamePrompt && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)', borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 20px rgba(124, 58, 237, 0.15)' }}>
-              <h3 style={{ marginBottom: '12px', fontSize: '1.2rem', color: '#fff' }}>Claim your username</h3>
+              <h3 style={{ marginBottom: '12px', fontSize: '1.2rem', color: 'var(--text-primary)' }}>Claim your username</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.95rem' }}>We've added usernames to help people find you. Yours is currently <strong>@{profileData?.username}</strong> — want to customize it?</p>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
-                  <span style={{ color: 'var(--text-secondary)', marginRight: '8px' }}>@</span>
+                  <span style={{ color: 'var(--text-primary)', marginRight: '8px' }}>@</span>
                   <input 
                     type="text" 
                     value={promptUsername} 
                     onChange={e => setPromptUsername(e.target.value.toLowerCase())} 
-                    style={{ background: 'transparent', border: 'none', color: '#fff', outline: 'none', flex: 1, fontSize: '1rem' }} 
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', flex: 1, fontSize: '1rem' }} 
                   />
                   {checkingPromptUsername && <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '8px' }}>Checking...</span>}
                   {!checkingPromptUsername && isPromptUsernameValid && isPromptUsernameAvailable === true && <span style={{ color: '#10B981', fontWeight: 'bold', marginLeft: '8px' }}>✓</span>}
@@ -1350,6 +1350,11 @@ export default function Profile() {
                ) : (
                  <div className="profile-details" style={{ padding: '16px 24px 24px 24px' }}>
                    <h3>{profileData?.name || "User"}</h3>
+                   {profileData?.username && (
+                     <p style={{ color: 'var(--accent)', fontSize: '0.95rem', fontWeight: '500', marginBottom: '4px' }}>
+                       @{profileData.username}
+                     </p>
+                   )}
                    <p className="profile-email">{profileData?.email}</p>
                    {profileData?.occupation && <p className="profile-meta">💼 {profileData.occupation}</p>}
                    {profileData?.age && <p className="profile-meta">🎂 {profileData.age} years old</p>}
@@ -1507,7 +1512,14 @@ export default function Profile() {
                             profileData?.name ? profileData.name.charAt(0).toUpperCase() : "U"
                           )}
                         </div>
-                        <span className="my-post-username">{profileData?.name || "User"}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                          <span className="my-post-username" style={{ lineHeight: '1.2' }}>{profileData?.name || "User"}</span>
+                          {profileData?.username && (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              @{profileData.username}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="my-post-content">
                         <p>{post.content}</p>

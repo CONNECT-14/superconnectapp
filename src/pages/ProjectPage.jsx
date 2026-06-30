@@ -7,22 +7,14 @@ import BackgroundParticles from "../components/BackgroundParticles";
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-  :root {
-    --bg-app: #0F0F11;
-    --bg-card: #1A1A1F;
-    --border: #2A2A2F;
-    --text-primary: #F4F4F5;
-    --text-secondary: #A1A1AA;
-    --accent: #7C3AED;
-    --accent-hover: #6D28D9;
-    --shadow: 0 4px 24px rgba(0,0,0,0.35);
-    --radius: 16px;
-    --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
+  /* Global CSS variables inherited from index.css for Light/Dark mode */
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   .pp-root {
+    --radius: 16px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.08);
+    --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
     min-height: 100vh;
     background: var(--bg-app);
     font-family: 'Inter', sans-serif;
@@ -91,7 +83,7 @@ const styles = `
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px;
-    background: #13131A;
+    background: var(--bg-card);
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
     gap: 16px;
@@ -100,7 +92,7 @@ const styles = `
   .pp-project-title {
     font-size: 28px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-primary);
     letter-spacing: -0.5px;
     line-height: 1.2;
   }
@@ -143,7 +135,7 @@ const styles = `
     align-items: center;
     gap: 16px;
     padding: 14px 24px;
-    background: #13131A;
+    background: var(--bg-card);
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
     flex-wrap: wrap;
@@ -196,10 +188,10 @@ const styles = `
   /* ── Description ── */
   .pp-description {
     padding: 0 24px 18px;
-    background: #13131A;
+    background: var(--bg-card);
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
-    color: #71717A;
+    color: var(--text-secondary);
     font-size: 0.9rem;
     line-height: 1.65;
   }
@@ -268,11 +260,11 @@ const styles = `
   }
 
   .pp-post:hover {
-    background: #232328;
+    background: var(--bg-app);
   }
 
   .pp-post + .pp-post {
-    border-top: 1px solid rgba(42, 42, 47, 0.8);
+    border-top: 1px solid var(--border);
     margin-top: 0;
     border-radius: 0 0 10px 10px;
   }
@@ -337,7 +329,7 @@ const styles = `
 
   .pp-post-text {
     font-size: 0.925rem;
-    color: #D4D4D8;
+    color: var(--text-primary);
     line-height: 1.6;
     font-weight: 400;
   }
@@ -382,14 +374,14 @@ const styles = `
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background: #16161C;
+    background: var(--bg-card);
   }
 
   .pp-composer-main {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: #0F0F13;
+    background: var(--bg-app);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 4px 4px 4px 16px;
@@ -414,7 +406,7 @@ const styles = `
   }
 
   .pp-composer-input::placeholder {
-    color: #52525B;
+    color: var(--text-secondary);
   }
 
   .btn-post {
@@ -470,7 +462,7 @@ const styles = `
   }
 
   .pp-file-label:hover {
-    color: #fff;
+    color: var(--text-primary);
     border-color: var(--accent);
     background: rgba(124, 58, 237, 0.1);
   }
@@ -583,7 +575,7 @@ export default function ProjectPage() {
   const fetchProject = async (currentUser) => {
     const { data } = await supabase
       .from("projects")
-      .select("*, profiles(name, avatar_url)")
+      .select("*, profiles(name, avatar_url, username)")
       .eq("id", id)
       .single();
     setProject(data);
@@ -621,7 +613,7 @@ export default function ProjectPage() {
       // Try fetching from posts table with project_id
       const { data, error } = await supabase
         .from("posts")
-        .select("*, profiles(name, avatar_url)")
+        .select("*, profiles(name, avatar_url, username)")
         .eq("project_id", id)
         .order("created_at", { ascending: false });
 
@@ -641,7 +633,7 @@ export default function ProjectPage() {
         // Fallback to project_messages (legacy)
         const { data: msgs } = await supabase
           .from("project_messages")
-          .select("*, profiles(name, avatar_url)")
+          .select("*, profiles(name, avatar_url, username)")
           .eq("project_id", id)
           .order("created_at", { ascending: false });
         // Map project_messages to a post-like shape (no real post ID for navigation)
@@ -780,7 +772,7 @@ export default function ProjectPage() {
               {project.status && (
                 <span className="pp-status-badge">{project.status}</span>
               )}
-              <div className="pp-creator">
+              <div className="pp-creator" style={{ alignItems: 'center' }}>
                 {project.profiles?.avatar_url ? (
                   <img
                     src={project.profiles.avatar_url}
@@ -794,7 +786,14 @@ export default function ProjectPage() {
                       : "U"}
                   </div>
                 )}
-                <span>{project.profiles?.name || "Unknown"}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <span style={{ fontWeight: '600', lineHeight: 1.2 }}>{project.profiles?.name || "Unknown"}</span>
+                  {project.profiles?.username && (
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      @{project.profiles.username}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

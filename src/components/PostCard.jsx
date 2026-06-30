@@ -181,7 +181,7 @@ export default function PostCard({ post, onDelete, isDetail = false }) {
   const fetchComments = async () => {
     const { data } = await supabase
       .from("comments")
-      .select(`*, profiles(name, avatar_url)`)
+      .select(`*, profiles(name, avatar_url, username)`)
       .eq("post_id", post.id)
       .order("created_at", { ascending: false });
 
@@ -250,7 +250,7 @@ export default function PostCard({ post, onDelete, isDetail = false }) {
 
       {/* HEADER */}
       <div className="post-header">
-        <div className="user-info">
+        <div className="user-info" style={{ alignItems: 'center' }}>
           <div className="avatar" style={{ overflow: 'hidden' }}>
             {post.profiles?.avatar_url ? (
               <img src={post.profiles.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -258,7 +258,14 @@ export default function PostCard({ post, onDelete, isDetail = false }) {
               "👤"
             )}
           </div>
-          <span className="username">{displayName}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <span className="username" style={{ lineHeight: '1.2' }}>{displayName}</span>
+            {post.profiles?.username && (
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                @{post.profiles.username}
+              </span>
+            )}
+          </div>
         </div>
 
         {user && user.id !== post.user_id && (

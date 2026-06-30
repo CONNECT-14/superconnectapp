@@ -48,6 +48,10 @@ function Layout() {
       navigate("/reset-password");
     }
 
+    // Pages that should redirect to /home after a successful sign-in.
+    // All other app pages (profile, explore, project, etc.) must stay as-is on refresh.
+    const PUBLIC_AUTH_ROUTES = ["/", "/login", "/register"];
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         isRecovery = true;
@@ -56,17 +60,20 @@ function Layout() {
       }
       if (event === "SIGNED_IN") {
         // If we're in a recovery flow, DO NOT redirect to /home.
-        // Check local flag, react router path, AND raw window URL to be absolutely safe.
         const currentUrl = window.location.href;
         if (
-          isRecovery || 
-          location.pathname === "/reset-password" || 
-          currentUrl.includes("reset-password") || 
+          isRecovery ||
+          location.pathname === "/reset-password" ||
+          currentUrl.includes("reset-password") ||
           currentUrl.includes("type=recovery")
         ) {
           return;
         }
-        navigate("/home");
+        // Only redirect to /home if the user is currently on a public/auth page.
+        // On all other pages (e.g. /profile, /explore, /project/:id), stay put.
+        if (PUBLIC_AUTH_ROUTES.includes(location.pathname)) {
+          navigate("/home");
+        }
       }
     });
 

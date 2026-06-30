@@ -64,7 +64,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
         // fetch posts by followed users (or all if globalMode)
         let postQuery = supabase
           .from("posts")
-          .select(`*, profiles(name, avatar_url)`)
+          .select(`*, profiles(name, avatar_url, username)`)
           .order("created_at", { ascending: false });
 
         if (!globalMode) {
@@ -97,7 +97,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
         // fetch projects (source 2)
         let projQuery = supabase
           .from("projects")
-          .select(`*, profiles(name, avatar_url)`)
+          .select(`*, profiles(name, avatar_url, username)`)
           .order("created_at", { ascending: false });
 
         if (!globalMode) {
@@ -123,7 +123,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
           if (directProjIds.length > 0) {
             let directProjQuery = supabase
               .from("projects")
-              .select(`*, profiles(name, avatar_url)`)
+              .select(`*, profiles(name, avatar_url, username)`)
               .in("id", directProjIds)
               .order("created_at", { ascending: false });
 
@@ -189,7 +189,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
 
         let postQuery = supabase
           .from("posts")
-          .select(`*, profiles(name, avatar_url)`)
+          .select(`*, profiles(name, avatar_url, username)`)
           .order("created_at", { ascending: false });
 
         if (!globalMode) {
@@ -274,7 +274,7 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
 
         let projQuery = supabase
           .from("projects")
-          .select(`*, profiles(name, avatar_url)`)
+          .select(`*, profiles(name, avatar_url, username)`)
           .order("created_at", { ascending: false });
 
         if (!globalMode) {

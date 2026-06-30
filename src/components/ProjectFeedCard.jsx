@@ -73,11 +73,18 @@ export default function ProjectFeedCard({ project }) {
             )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="username" style={{ color: 'var(--text-primary)', fontWeight: 'bold', fontSize: '15px' }}>{creatorName}</span>
-              <span style={{ background: 'rgba(124, 58, 237, 0.15)', color: '#A855F7', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold' }}>PROJECT</span>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <span className="username" style={{ color: 'var(--text-primary)', fontWeight: 'bold', fontSize: '15px', lineHeight: '1.2' }}>{creatorName}</span>
+                {project.profiles?.username && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    @{project.profiles.username}
+                  </span>
+                )}
+              </div>
+              <span style={{ background: 'rgba(124, 58, 237, 0.15)', color: '#A855F7', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold', marginTop: '2px' }}>PROJECT</span>
             </div>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>created a project</span>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>created a project</span>
           </div>
         </div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>

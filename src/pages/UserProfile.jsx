@@ -6,22 +6,12 @@ import SkeletonLoader from "../components/SkeletonLoader";
 import FollowModals from "../components/FollowModals";
 
 const styles = `
-  :root {
-    --bg-app: #0F0F11;
-    --bg-card: #1A1A1F;
-    --border: #2A2A2F;
-    --text-primary: #F4F4F5;
-    --text-secondary: #A1A1AA;
-    --accent: #7C3AED;
-    --accent-hover: #6D28D9;
-    --shadow: 0 4px 12px rgba(0,0,0,0.2);
-    --radius: 12px;
-    --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
+  /* Global CSS variables are now inherited from index.css for Light/Dark mode */
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   .profile-root {
+    --radius: 12px;
     min-height: 100vh;
     background: var(--bg-app);
     font-family: 'Inter', sans-serif;
@@ -76,10 +66,10 @@ const styles = `
   .section-label {
     font-size: 15px;
     font-weight: bold;
-    color: white;
+    color: var(--text-primary);
     text-transform: uppercase;
     margin-bottom: 16px;
-    border-left: 3px solid #7C3AED;
+    border-left: 3px solid var(--accent);
     padding-left: 8px;
   }
 
@@ -197,8 +187,8 @@ const styles = `
   }
 
   .my-post-card {
-    background: #1A1A1F;
-    border: 1px solid #2A2A2F;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 12px;
     padding: 16px;
     position: relative;
@@ -239,14 +229,14 @@ const styles = `
   .my-post-username {
     font-weight: 600;
     font-size: 1rem;
-    color: #F4F4F5;
+    color: var(--text-primary);
   }
 
   .my-post-content {
     margin-top: 12px;
     font-size: 0.95rem;
     line-height: 1.6;
-    color: #A1A1AA;
+    color: var(--text-secondary);
   }
 
   .my-post-tags {
@@ -284,11 +274,11 @@ const styles = `
   }
 
   .my-post-like {
-    background: #0F0F11;
+    background: var(--bg-app);
     border: 1px solid var(--border);
     padding: 6px 14px;
     border-radius: 20px;
-    color: var(--ink);
+    color: var(--text-primary);
     font-size: 0.85rem;
     font-weight: 500;
     font-family: 'Inter', sans-serif;
@@ -298,7 +288,7 @@ const styles = `
   .my-post-comments-btn {
     background: none;
     border: none;
-    color: #A1A1AA;
+    color: var(--text-secondary);
     font-size: 13px;
     cursor: pointer;
     font-weight: 500;
@@ -326,7 +316,7 @@ const styles = `
   .my-post-comments-container {
     max-height: 140px;
     overflow-y: auto;
-    background: #0F0F11;
+    background: var(--bg-app);
     padding: 12px 16px;
     border-radius: 8px;
     margin-top: 12px;
@@ -338,7 +328,7 @@ const styles = `
     border-bottom: 1px solid var(--border);
     font-size: 0.9rem;
     line-height: 1.4;
-    color: #A1A1AA;
+    color: var(--text-secondary);
   }
 
   .my-post-comment-item:last-child {
@@ -365,10 +355,10 @@ const styles = `
     padding: 10px 14px;
     border-radius: 8px;
     border: 1px solid var(--border);
-    background: #0F0F11;
+    background: var(--bg-app);
     font-family: 'Inter', sans-serif;
     font-size: 0.9rem;
-    color: #F4F4F5;
+    color: var(--text-primary);
     outline: none;
     transition: border-color 0.2s ease;
   }
@@ -518,7 +508,7 @@ export default function UserProfile() {
   const fetchUserPosts = async (userId) => {
     const { data, error } = await supabase
       .from("posts")
-      .select(`*, profiles(name, avatar_url)`)
+      .select(`*, profiles(name, avatar_url, username)`)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -554,7 +544,7 @@ export default function UserProfile() {
   const fetchPostComments = async (postId) => {
     const { data } = await supabase
       .from("comments")
-      .select(`*, profiles(name, avatar_url)`)
+      .select(`*, profiles(name, avatar_url, username)`)
       .eq("post_id", postId)
       .order("created_at", { ascending: false });
     setPostComments(prev => ({ ...prev, [postId]: data || [] }));
@@ -622,21 +612,6 @@ export default function UserProfile() {
       <style>{styles}</style>
       <div className="profile-root">
         <div className="profile-inner">
-          <div className="profile-header">
-            <div>
-              <h2>{userProfile?.name || "User Profile"}</h2>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '15px', marginTop: '6px', fontWeight: '500' }}>@{userProfile?.username}</div>
-            </div>
-            {currentUser && currentUser.id !== resolvedId && (
-              <button 
-                className={`btn-follow-user ${isFollowingUser ? "active" : ""}`}
-                onClick={handleFollowUser}
-              >
-                {isFollowingUser ? "Following" : "Follow"}
-              </button>
-            )}
-          </div>
-
           {userProfile && (
             <div className="profile-info-section">
               <p className="section-label">User Info</p>
@@ -656,29 +631,46 @@ export default function UserProfile() {
                  </div>
                  
                  <div className="profile-details" style={{ padding: '16px 24px 24px 24px' }}>
-                   <h3>{userProfile?.name || "User"}</h3>
-                   {userProfile?.occupation && <p className="profile-meta">💼 {userProfile.occupation}</p>}
-                   {userProfile?.age && <p className="profile-meta">🎂 {userProfile.age} years old</p>}
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                     <div>
+                       <h3>{userProfile?.name || "User"}</h3>
+                       {userProfile?.username && (
+                         <p style={{ color: 'var(--accent)', fontSize: '0.95rem', fontWeight: '500', marginBottom: '8px' }}>
+                           @{userProfile.username}
+                         </p>
+                       )}
+                       {userProfile?.occupation && <p className="profile-meta">💼 {userProfile.occupation}</p>}
+                       {userProfile?.age && <p className="profile-meta">🎂 {userProfile.age} years old</p>}
+                     </div>
+                     {currentUser && currentUser.id !== resolvedId && (
+                       <button 
+                         className={`btn-follow-user ${isFollowingUser ? "active" : ""}`}
+                         onClick={handleFollowUser}
+                       >
+                         {isFollowingUser ? "Following" : "Follow"}
+                       </button>
+                     )}
+                   </div>
                    
                    <div className="profile-stats" style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer' }} onClick={() => setModalType('followers')}>
-                       <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{followersCount}</span>
-                       <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Followers</span>
+                       <span style={{ color: 'var(--text-primary)', fontWeight: 'bold', fontSize: '18px' }}>{followersCount}</span>
+                       <span style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>Followers</span>
                      </div>
                      <div style={{ width: '1px', height: '32px', background: 'var(--border)' }}></div>
                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer' }} onClick={() => setModalType('following')}>
-                       <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{followingCount}</span>
-                       <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Following</span>
+                       <span style={{ color: 'var(--text-primary)', fontWeight: 'bold', fontSize: '18px' }}>{followingCount}</span>
+                       <span style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>Following</span>
                      </div>
                      <div style={{ width: '1px', height: '32px', background: 'var(--border)' }}></div>
                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                       <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{projects.length}</span>
-                       <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Projects</span>
+                       <span style={{ color: 'var(--text-primary)', fontWeight: 'bold', fontSize: '18px' }}>{projects.length}</span>
+                       <span style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>Projects</span>
                      </div>
                      <div style={{ width: '1px', height: '32px', background: 'var(--border)' }}></div>
                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                       <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px' }}>{postsCount}</span>
-                       <span style={{ color: '#A1A1AA', fontSize: '13px', marginTop: '4px' }}>Posts</span>
+                       <span style={{ color: 'var(--text-primary)', fontWeight: 'bold', fontSize: '18px' }}>{postsCount}</span>
+                       <span style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>Posts</span>
                      </div>
                    </div>
                  </div>
