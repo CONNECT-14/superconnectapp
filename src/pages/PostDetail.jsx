@@ -287,23 +287,43 @@ export default function PostDetail() {
       return;
     }
 
-    const { error } = await supabase.from("comments").insert([
-      {
-        user_id: currentUser.id,
-        post_id: postId,
-        content: newComment,
-      },
-    ]);
+    const tempComment = {
+      id: `temp-${Date.now()}`,
+      content: newComment,
+      created_at: new Date().toISOString(),
+      user_id: currentUser.id,
+      profiles: { 
+        name: currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || "You", 
+        avatar_url: currentUser.user_metadata?.avatar_url || null,
+        username: currentUser.user_metadata?.username || null
+      }
+    };
 
-    if (!error) {
-      setNewComment("");
-      await fetchComments();
+    setComments(prev => [...prev, tempComment]);
+    const commentText = newComment;
+    setNewComment("");
+
+    const { data, error } = await supabase
+      .from("comments")
+      .insert([
+        {
+          user_id: currentUser.id,
+          post_id: postId,
+          content: commentText,
+        },
+      ])
+      .select('*, profiles(name, avatar_url, username)')
+      .single();
+
+    if (!error && data) {
+      setComments(prev => prev.map(c => c.id === tempComment.id ? data : c));
 
       if (post && currentUser.id !== post.user_id) {
         await insertNotification(currentUser.id, post.user_id, 'comment', postId, 'commented on your post');
       }
     } else {
-      alert(error.message);
+      setComments(prev => prev.filter(c => c.id !== tempComment.id));
+      alert(error?.message || "Failed to post comment");
     }
   };
 

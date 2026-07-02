@@ -414,6 +414,7 @@ export default function Home() {
   const debouncedSearch = useDebounce(searchText, 400);
   const [searchTrigger, setSearchTrigger] = useState("");
   const [userSearchResults, setUserSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Auto trigger search on debounce
   useEffect(() => {
@@ -507,8 +508,10 @@ export default function Home() {
       return;
     }
     const fetchUsers = async () => {
+      setIsSearching(true);
       const { data } = await supabase.rpc('search_profiles', { search_query: searchTrigger });
       setUserSearchResults(data || []);
+      setIsSearching(false);
     };
     fetchUsers();
   }, [searchTrigger]);
@@ -672,13 +675,18 @@ export default function Home() {
 
             {/* SEARCH & FILTERS */}
             <div className="search-filters-container">
-              <div className="search-bar">
+              <div className="search-bar" style={{ position: 'relative' }}>
                 <input 
                   type="text" 
                   placeholder="Search users or projects..." 
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
                 />
+                {isSearching && (
+                  <div style={{ position: 'absolute', right: '90px', top: '50%', transform: 'translateY(-50%)' }}>
+                    <div className="btn-spinner" style={{ borderColor: 'rgba(124, 58, 237, 0.3)', borderTopColor: 'var(--accent)' }}></div>
+                  </div>
+                )}
                 <button onClick={() => setSearchTrigger(searchText)}>Search</button>
               </div>
 

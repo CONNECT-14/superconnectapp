@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import useImageUpload from "../../hooks/useImageUpload";
 import { timeAgo } from "../../utils/format";
+import PostCard from "../PostCard";
 
 export default function ProjectFeed({
   projectId,
@@ -14,8 +14,7 @@ export default function ProjectFeed({
   requestStatus,
   isRequestingAccess
 }) {
-  const navigate = useNavigate();
-  const { upload: uploadPostImage } = useImageUpload('post_images');
+  const { upload: uploadPostImage } = useImageUpload('post-images');
   
   const [posts, setPosts] = useState([]);
   const PAGE_SIZE = 15;
@@ -136,12 +135,12 @@ export default function ProjectFeed({
         }
       }
 
-      const { error: postError } = await supabase.from("posts").insert([{
+      const { data: insertedData, error: postError } = await supabase.from("posts").insert([{
         user_id: user.id,
         content: msgText,
         image_url: imageUrl,
         project_id: projectId,
-      }]);
+      }]).select("*, profiles(name, avatar_url, username)").single();
 
       if (postError) {
         await supabase.from("project_messages").insert([{
@@ -150,11 +149,12 @@ export default function ProjectFeed({
           message: msgText,
           image_url: imageUrl,
         }]);
+      } else if (insertedData) {
+        setPosts(prev => [insertedData, ...prev]);
       }
 
       setMsgText("");
       clearImage();
-      fetchPosts(true); // refetch initial
     } catch (err) {
       setError("Failed to post.");
     } finally {
@@ -167,11 +167,6 @@ export default function ProjectFeed({
       e.preventDefault();
       sendPost();
     }
-  };
-
-  const handlePostClick = (post) => {
-    if (post._isLegacyMsg) return;
-    navigate(`/post/${post.id}`);
   };
 
   return (
@@ -219,68 +214,38 @@ export default function ProjectFeed({
                 </div>
               ) : (
                 posts.map((post) => {
-                  const imgUrl = post.image_url || (post.image_urls && post.image_urls[0]);
-                  const isClickable = !post._isLegacyMsg;
-
-                  return (
-                    <div
-                      key={post.id}
-                      className="pp-post"
-                      style={{ cursor: isClickable ? "pointer" : "default" }}
-                      onClick={() => handlePostClick(post)}
-                      role={isClickable ? "button" : undefined}
-                      tabIndex={isClickable ? 0 : undefined}
-                      onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") handlePostClick(post); } : undefined}
-                      aria-label={isClickable ? `View post by ${post.profiles?.name || "User"}` : undefined}
-                    >
-                      <Link 
-                        to={`/profile/${post.profiles?.username || post.user_id}`}
-                        className="pp-post-avatar-wrap"
-                        style={{ textDecoration: 'none', color: 'inherit' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {post.profiles?.avatar_url ? (
-                          <img
-                            src={post.profiles.avatar_url}
-                            alt="avatar"
-                            className="pp-post-avatar"
-                          />
-                        ) : (
-                          <div className="pp-post-initials">
-                            {post.profiles?.name
-                              ? post.profiles.name.charAt(0).toUpperCase()
-                              : "U"}
-                          </div>
-                        )}
-                      </Link>
-
-                      <div className="pp-post-body">
-                        <div className="pp-post-header">
-                          <Link 
-                            to={`/profile/${post.profiles?.username || post.user_id}`}
-                            className="pp-post-username"
-                            style={{ textDecoration: 'none', color: 'inherit' }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {post.profiles?.name || "User"}
-                          </Link>
-                          <span className="pp-post-time">
-                            {timeAgo(post.created_at)}
-                          </span>
+                  // Legacy project_messages: render simple read-only card
+                  if (post._isLegacyMsg) {
+                    const imgUrl = post.image_url || (post.image_urls && post.image_urls[0]);
+                    return (
+                      <div key={post.id} className="pp-post" style={{ cursor: 'default' }}>
+                        <div className="pp-post-avatar-wrap">
+                          {post.profiles?.avatar_url ? (
+                            <img src={post.profiles.avatar_url} alt="avatar" className="pp-post-avatar" />
+                          ) : (
+                            <div className="pp-post-initials">
+                              {post.profiles?.name ? post.profiles.name.charAt(0).toUpperCase() : "U"}
+                            </div>
+                          )}
                         </div>
-                        {post.content && (
-                          <p className="pp-post-text">{post.content}</p>
-                        )}
-                        {imgUrl && (
-                          <img
-                            src={imgUrl}
-                            alt="post"
-                            className="pp-post-image"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        )}
+                        <div className="pp-post-body">
+                          <div className="pp-post-header">
+                            <span className="pp-post-username">{post.profiles?.name || "User"}</span>
+                            <span className="pp-post-time">{timeAgo(post.created_at)}</span>
+                          </div>
+                          {post.content && <p className="pp-post-text">{post.content}</p>}
+                          {imgUrl && <img src={imgUrl} alt="post" className="pp-post-image" />}
+                        </div>
                       </div>
-                    </div>
+                    );
+                  }
+
+                  // Real posts: use PostCard for identical click behavior as Explore
+                  return (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                    />
                   );
                 })
               )}

@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import PostCard from "./PostCard";
 import ProjectFeedCard from "./ProjectFeedCard";
 import SkeletonLoader from "./SkeletonLoader";
 
 export default function Feed({ refresh, feedType, currentUser, search, category, topic, sort, globalMode = false }) {
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorObj, setErrorObj] = useState(null);
@@ -32,15 +33,42 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
     return () => observer.disconnect();
   }, [hasMore, loading]);
 
-  useEffect(() => {
-    setPage(0);
-    setHasMore(true);
-    setPosts([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refresh, feedType, currentUser, search, category, topic, sort, globalMode]);
+  const prevFilterRef = useRef({ refresh, feedType, currentUser, search, category, topic, sort, globalMode });
+  const cancelTokenRef = useRef(false);
 
   useEffect(() => {
-    fetchPosts(page === 0);
+    cancelTokenRef.current = false;
+    const currentFilter = { refresh, feedType, currentUser, search, category, topic, sort, globalMode };
+    const filterChanged = JSON.stringify(prevFilterRef.current) !== JSON.stringify(currentFilter);
+    prevFilterRef.current = currentFilter;
+
+    if (filterChanged) {
+      setPosts([]);
+      setPage(0);
+      setHasMore(true);
+      setLoading(true);
+      if (page !== 0) return; // Next render will trigger fetch with page=0
+    }
+
+    const isInitial = page === 0;
+
+    const fetchPosts = async () => {
+      if (isInitial) setLoading(true);
+      const start = Date.now();
+      
+      await _fetchPostsInner(isInitial);
+      
+      if (cancelTokenRef.current) return;
+      const elapsed = Date.now() - start;
+      if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
+      
+      if (cancelTokenRef.current) return;
+      if (isInitial) setLoading(false);
+    };
+
+    fetchPosts();
+
+    return () => { cancelTokenRef.current = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, refresh, feedType, currentUser, search, category, topic, sort, globalMode]);
 
@@ -81,10 +109,9 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
               .select("*")
               .neq("id", currentUser.id)
               .limit(3);
-            setSuggestedUsers(sUsers || []);
+            if (!cancelTokenRef.current) setSuggestedUsers(sUsers || []);
           }
-          setPosts([]);
-          // if (isInitial) setLoading(false);
+          if (!cancelTokenRef.current) setPosts([]);
           return;
         }
 
@@ -122,8 +149,8 @@ export default function Feed({ refresh, feedType, currentUser, search, category,
         if (topic && topic !== "All") posts = posts.filter(p => p.topic === topic);
 
         let mergedProjects = [];
-if (isInitial) {
-// fetch projects (source 2)
+
+        // fetch projects (source 2)
         let projQuery = supabase
           .from("projects")
           .select(`*, profiles(name, avatar_url, username)`)
@@ -170,11 +197,10 @@ if (isInitial) {
         [...followedUserProjects, ...directFollowedProjects].forEach(pr => {
           if (!allProjectsMap.has(pr.id)) allProjectsMap.set(pr.id, pr);
         });
-        Array.from(allProjectsMap.values());
-}
+        mergedProjects = Array.from(allProjectsMap.values());
 
         // combine posts + merged projects, sort by created_at
-        let combined = isInitial ? [...posts, ...mergedProjects].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : posts;
+        let combined = [...posts, ...mergedProjects].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         if (sort === "top" || sort === "most_replies") {
           const [{ data: likesData }, { data: commentsData }] = await Promise.all([
@@ -196,8 +222,10 @@ if (isInitial) {
           combined = [...postsOnly, ...projectsOnly];
         }
 
-        setPosts(prev => isInitial ? combined : [...prev, ...combined]);
-        // if (isInitial) setLoading(false);
+        if (!cancelTokenRef.current) {
+          setPosts(prev => isInitial ? combined : [...prev, ...combined]);
+          setHasMore(posts.length === PAGE_SIZE || mergedProjects.length === PAGE_SIZE);
+        }
         return;
       }
 
@@ -210,10 +238,9 @@ if (isInitial) {
               .select("*")
               .neq("id", currentUser.id)
               .limit(3);
-            setSuggestedUsers(sUsers || []);
+            if (!cancelTokenRef.current) setSuggestedUsers(sUsers || []);
           }
-          setPosts([]);
-          // if (isInitial) setLoading(false);
+          if (!cancelTokenRef.current) setPosts([]);
           return;
         }
 
@@ -263,8 +290,10 @@ if (isInitial) {
           if (sort === "most_replies") result.sort((a, b) => b._comments_count - a._comments_count);
         }
 
-        setPosts(result);
-        // if (isInitial) setLoading(false);
+        if (!cancelTokenRef.current) {
+          setPosts(prev => isInitial ? result : [...prev, ...result]);
+          setHasMore(result.length === PAGE_SIZE);
+        }
         return;
       }
 
@@ -319,12 +348,15 @@ if (isInitial) {
         if (projErr) throw projErr;
 
         const projects = (projData || []).map(pr => ({ ...pr, type: 'project' }));
-        setPosts(projects);
-        // if (isInitial) setLoading(false);
+        if (!cancelTokenRef.current) {
+          setPosts(prev => isInitial ? projects : [...prev, ...projects]);
+          setHasMore(projects.length === PAGE_SIZE);
+        }
         return;
       }
 
     } catch (err) {
+      if (cancelTokenRef.current) return;
       console.error("Feed error:", err);
       setErrorObj(err.message || "Failed to load feed.");
     } finally {
@@ -465,9 +497,11 @@ if (isInitial) {
 
           {/* ALL & POSTS: following someone but nothing to show */}
           {(feedType === 'All' || feedType === 'Posts') && posts.length === 0 && suggestedUsers.length === 0 && (
-            <p style={{ color: "var(--ink-muted)", fontStyle: "italic", fontSize: "0.9rem", textAlign: "center", padding: "20px" }}>
-              No posts yet from people you follow.
-            </p>
+            <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+              <p>Your feed is empty.</p>
+              <p>Follow people or explore posts to get started.</p>
+              <button onClick={() => navigate('/explore')} style={{ marginTop: '16px', padding: '8px 16px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>Explore Posts</button>
+            </div>
           )}
 
           {/* PROJECTS empty state */}

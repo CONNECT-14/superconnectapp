@@ -325,6 +325,8 @@ export default function Messages() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState(null);
   const [unreadChats, setUnreadChats] = useState(new Set());
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -382,51 +384,71 @@ export default function Messages() {
   }, [user]);
 
   const fetchChatUsers = useCallback(async (userId) => {
-    const { data: followersData } = await supabase
-      .from("follows")
-      .select("follower_id")
-      .eq("following_id", userId);
+    const { data, error } = await supabase
+      .from('messages')
+      .select('sender_id, receiver_id')
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+      .order('created_at', { ascending: false })
+      .limit(50);
 
-    const { data: followingData } = await supabase
-      .from("follows")
-      .select("following_id")
-      .eq("follower_id", userId);
+    if (error) {
+      setError("Failed to fetch chat users.");
+      return;
+    }
 
-    const { data: sentMsgs } = await supabase
-      .from("messages")
-      .select("receiver_id")
-      .eq("sender_id", userId);
+    // Extract unique conversation partner IDs
+    const partnerIds = [...new Set(
+      (data || []).map(m => m.sender_id === userId ? m.receiver_id : m.sender_id)
+    )];
 
-    const { data: receivedMsgs } = await supabase
-      .from("messages")
-      .select("sender_id")
-      .eq("receiver_id", userId);
-
-    const ids = [
-      ...(followersData || []).map((f) => f.follower_id),
-      ...(followingData || []).map((f) => f.following_id),
-      ...(sentMsgs || []).map((m) => m.receiver_id),
-      ...(receivedMsgs || []).map((m) => m.sender_id),
-    ];
-
-    const uniqueIds = [...new Set(ids)].filter((id) => id !== userId);
-
-    if (uniqueIds.length === 0) {
+    if (partnerIds.length === 0) {
       setChatUsers([]);
       return;
     }
 
+    // Fetch only those profiles
     const { data: profiles, error: chatErr } = await supabase
-      .from("profiles")
-      .select("id, name, avatar_url, username")
-      .in("id", uniqueIds);
+      .from('profiles')
+      .select('id, name, username, avatar_url')
+      .in('id', partnerIds);
 
     if (chatErr) {
       setError("Failed to fetch chat users.");
       return;
     }
 
-    setChatUsers(profiles || []);
+    const profilesWithMessages = await Promise.all((profiles || []).map(async (prof) => {
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('content, iv, created_at, sender_id')
+        .or(`and(sender_id.eq.${userId},receiver_id.eq.${prof.id}),and(sender_id.eq.${prof.id},receiver_id.eq.${userId})`)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      let lastMessage = null;
+      let lastMessageTime = null;
+      
+      if (msgs && msgs.length > 0) {
+        const msg = msgs[0];
+        lastMessageTime = msg.created_at;
+        try {
+          const decrypted = await decryptMessage(msg.content, msg.iv, ENCRYPTION_KEY);
+          lastMessage = decrypted;
+        } catch (e) {
+          lastMessage = "Encrypted message";
+        }
+      }
+      
+      return {
+        ...prof,
+        lastMessage,
+        lastMessageTime
+      };
+    }));
+
+    profilesWithMessages.sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
+
+    setChatUsers(profilesWithMessages);
   }, []);
 
   useEffect(() => {
@@ -446,7 +468,8 @@ export default function Messages() {
       .or(
         `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
       )
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(50);
 
     if (error) {
       setError("Failed to fetch messages.");
@@ -461,8 +484,39 @@ export default function Messages() {
       }))
     );
 
-    setMessages(decrypted);
+    setMessages(decrypted.reverse());
+    setHasMoreMessages(data.length === 50);
     setTimeout(scrollToBottom, 100);
+  };
+
+  const loadOlderMessages = async () => {
+    if (!hasMoreMessages || loadingMore || !selectedUser || !user) return;
+    setLoadingMore(true);
+    const oldest = messages[0];
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${user.id})`)
+      .order('created_at', { ascending: false })
+      .lt('created_at', oldest.created_at)
+      .limit(50);
+      
+    if (error) {
+      setError("Failed to load older messages.");
+      setLoadingMore(false);
+      return;
+    }
+
+    const decrypted = await Promise.all(
+      (data || []).map(async (msg) => ({
+        ...msg,
+        content: await decryptMessage(msg.content, msg.iv, ENCRYPTION_KEY),
+      }))
+    );
+    
+    setMessages(prev => [...decrypted.reverse(), ...prev]);
+    setHasMoreMessages(data.length === 50);
+    setLoadingMore(false);
   };
 
   const sendMessage = async () => {
@@ -553,7 +607,10 @@ export default function Messages() {
             
             <div className="chat-list">
               {chatUsers.length === 0 ? (
-                <div style={{ padding: "20px", color: "var(--text-secondary)", fontStyle: "italic" }}>No chats yet</div>
+                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
+                  <p>No conversations yet.</p>
+                  <p>Search for a user to start chatting.</p>
+                </div>
               ) : (
                 chatUsers.map((u) => (
                   <div
@@ -576,10 +633,20 @@ export default function Messages() {
                           {u.name ? u.name.charAt(0).toUpperCase() : "U"}
                         </div>
                       )}
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: '500', lineHeight: 1.2 }}>{u.name || "User"}</span>
-                        {u.username && (
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '500', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name || "User"}</span>
+                          {u.lastMessageTime && (
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', flexShrink: 0 }}>{formatTimeOnly(u.lastMessageTime)}</span>
+                          )}
+                        </div>
+                        {u.username && !u.lastMessage && (
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>@{u.username}</span>
+                        )}
+                        {u.lastMessage && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {u.lastMessage.length > 40 ? u.lastMessage.substring(0, 40) + '...' : u.lastMessage}
+                          </span>
                         )}
                       </div>
                       {unreadChats.has(u.id) && (
@@ -620,6 +687,17 @@ export default function Messages() {
                 </div>
 
                 <div className="messages-area">
+                  {hasMoreMessages && messages.length > 0 && (
+                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                      <button 
+                        onClick={loadOlderMessages} 
+                        disabled={loadingMore}
+                        style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: '16px', fontSize: '0.8rem', cursor: 'pointer' }}
+                      >
+                        {loadingMore ? 'Loading...' : 'Load older messages'}
+                      </button>
+                    </div>
+                  )}
                   {messages.map((msg) => (
                     <div
                       key={msg.id}

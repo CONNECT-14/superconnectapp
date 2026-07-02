@@ -21,6 +21,7 @@ import PostDetail from "./pages/PostDetail";
 // Components
 import Sidebar from "./components/Sidebar";
 import TopProgressBar from "./components/TopProgressBar";
+import PrivateRoute from "./components/PrivateRoute";
 
 // Pages where navbar should NOT appear
 const NO_NAVBAR_ROUTES = ["/", "/login", "/register", "/reset-password"];
@@ -137,17 +138,17 @@ function Layout() {
           <Route path="/register" element={<Register />} />
 
           {/* Dashboard */}
-          <Route path="/home" element={<Home />} />
+          <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
 
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/messages" element={<Messages />} />
-          <Route path="/following" element={<Following />} />
-          <Route path="/followers" element={<Followers />} />
-          <Route path="/profile/:identifier" element={<UserProfile />} />
-          <Route path="/project/:id" element={<ProjectPage />} />
-          <Route path="/project-hub" element={<ProjectHub />} />
-          <Route path="/explore" element={<ExplorePage />} />
-          <Route path="/post/:postId" element={<PostDetail />} />
+          <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+          <Route path="/messages" element={<PrivateRoute><Messages /></PrivateRoute>} />
+          <Route path="/following" element={<PrivateRoute><Following /></PrivateRoute>} />
+          <Route path="/followers" element={<PrivateRoute><Followers /></PrivateRoute>} />
+          <Route path="/profile/:identifier" element={<PrivateRoute><UserProfile /></PrivateRoute>} />
+          <Route path="/project/:id" element={<PrivateRoute><ProjectPage /></PrivateRoute>} />
+          <Route path="/project-hub" element={<PrivateRoute><ProjectHub /></PrivateRoute>} />
+          <Route path="/explore" element={<PrivateRoute><ExplorePage /></PrivateRoute>} />
+          <Route path="/post/:postId" element={<PrivateRoute><PostDetail /></PrivateRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
         </Routes>
