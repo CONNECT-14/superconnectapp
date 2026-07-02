@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
+import { insertNotification } from "../utils/supabase-helpers";
 
 const modalStyles = `
   .interest-overlay {
@@ -161,13 +162,14 @@ export default function InterestModal({ collab, currentUser, onClose, onSuccess 
     const displayName = myProfile?.name || myProfile?.username || 'Someone';
 
     // Send notification to creator
-    await supabase.from('notifications').insert({
-      user_id: collab.creator_id,
-      from_user_id: currentUser.id,
-      type: 'collab_interest',
-      message: `${displayName} is interested in your ${collab.role} collab request`,
-      collab_request_id: collab.id
-    });
+    await insertNotification(
+      currentUser.id,
+      collab.creator_id,
+      'collab_interest',
+      null, // postId
+      `${displayName} is interested in your ${collab.role} collab request`,
+      collab.id
+    );
 
     setSending(false);
     onSuccess();

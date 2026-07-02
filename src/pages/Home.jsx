@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import useAuth from "../hooks/useAuth";
 import CreatePost from "../components/CreatePost";
 import Feed from "../components/Feed";
 import BackgroundParticles from "../components/BackgroundParticles";
@@ -204,6 +205,7 @@ const styles = `
     height: 36px;
     border-radius: 50%;
     object-fit: cover;
+    flex-shrink: 0;
   }
   .rs-user-placeholder {
     background: var(--accent);
@@ -243,6 +245,7 @@ const styles = `
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
+    flex-shrink: 0;
   }
   .rs-btn:hover {
     background: var(--accent);
@@ -393,8 +396,9 @@ const styles = `
 
 export default function Home() {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user: currentUser } = useAuth();
   const [refresh, setRefresh] = useState(false);
+  const [error, setError] = useState(null);
 
   // Left Sidebar Data
   const [profile, setProfile] = useState(null);
@@ -426,28 +430,7 @@ export default function Home() {
   // Feed State
   const [feedType, setFeedType] = useState('All'); // 'All', 'People', 'Projects'
 
-  useEffect(() => {
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const init = async () => {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      const user = session?.user;
-      setCurrentUser(user);
-      
-      if (user) {
-        await fetchSidebarData(user.id);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-    }
-  };
-
-  const fetchSidebarData = async (userId) => {
+  const fetchSidebarData = useCallback(async (userId) => {
     // Profile
     const { data: prof } = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (prof) setProfile(prof);
@@ -481,7 +464,15 @@ export default function Home() {
     const { data: tProjects } = await supabase.from("projects").select("*").neq("user_id", userId).limit(20);
     const filteredProjects = (tProjects || []).filter(p => !pFollowingIds.includes(p.id)).slice(0, 2);
     setTrendingProjects(filteredProjects);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchSidebarData(currentUser.id);
+    }
+  }, [currentUser, fetchSidebarData]);
+
+
 
   const handleFollowUser = async (targetId) => {
     if (!currentUser) return;
@@ -490,6 +481,8 @@ export default function Home() {
     if (!error) {
       setSuggestedUsers(prev => prev.filter(u => u.id !== targetId));
       setStats(prev => ({ ...prev, following: prev.following + 1 }));
+    } else {
+      setError("Failed to follow user.");
     }
     setFollowingUserProgress(prev => ({ ...prev, [targetId]: false }));
   };
@@ -500,6 +493,8 @@ export default function Home() {
     const { error } = await supabase.from("project_followers").insert({ user_id: currentUser.id, project_id: targetId });
     if (!error) {
       setTrendingProjects(prev => prev.filter(p => p.id !== targetId));
+    } else {
+      setError("Failed to track project.");
     }
     setTrackingProjectProgress(prev => ({ ...prev, [targetId]: false }));
   };
@@ -529,6 +524,12 @@ export default function Home() {
         <BackgroundParticles variant="split" />
         
         <div className="home-layout">
+          {error && (
+            <div style={{ position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', background: '#ef4444', color: 'white', padding: '12px 24px', borderRadius: '8px', zIndex: 9999, fontSize: '14px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+              {error}
+              <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+            </div>
+          )}
           
           {/* LEFT SIDEBAR (Now 280px and contains everything) */}
           <div className="left-sidebar">
@@ -601,22 +602,27 @@ export default function Home() {
                   <>
                     {suggestedUsers.map(u => (
                       <div key={u.id} className="rs-user">
-                        {u.avatar_url ? (
-                          <img src={u.avatar_url} alt="User" />
-                        ) : (
-                          <div className="rs-user-placeholder">{u.name ? u.name.charAt(0).toUpperCase() : "U"}</div>
-                        )}
-                        <div className="rs-user-info">
-                          <div className="rs-user-name" onClick={() => navigate(`/profile/${u.username || u.id}`)} style={{cursor:'pointer'}}>{u.name || "User"}</div>
-                          <div className="rs-user-occ">{u.occupation || "Member"}</div>
-                        </div>
+                        <Link 
+                          to={`/profile/${u.username || u.id}`}
+                          style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit' }}
+                        >
+                          {u.avatar_url ? (
+                            <img src={u.avatar_url} alt="User" />
+                          ) : (
+                            <div className="rs-user-placeholder">{u.name ? u.name.charAt(0).toUpperCase() : "U"}</div>
+                          )}
+                          <div className="rs-user-info">
+                            <div className="rs-user-name">{u.name || "User"}</div>
+                            <div className="rs-user-occ">{u.occupation || "Member"}</div>
+                          </div>
+                        </Link>
                         <button className="rs-btn" onClick={() => handleFollowUser(u.id)} disabled={followingUserProgress[u.id]} style={{ opacity: followingUserProgress[u.id] ? 0.7 : 1 }}>
                           {followingUserProgress[u.id] ? <div className="btn-spinner"></div> : "Follow"}
                         </button>
                       </div>
                     ))}
                     {suggestedUsers.length > 0 && (
-                      <Link to="/" style={{ fontSize: '12px', color: '#A855F7', textDecoration: 'none', display: 'block', padding: '0 8px', marginTop: '4px', fontWeight: '500' }}>
+                      <Link to="/explore?filter=users" style={{ fontSize: '12px', color: '#A855F7', textDecoration: 'none', display: 'block', padding: '0 8px', marginTop: '4px', fontWeight: '500' }}>
                         Find more
                       </Link>
                     )}
@@ -710,7 +716,13 @@ export default function Home() {
                 <h3 style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Users</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {userSearchResults.map(u => (
-                    <div key={u.id} onClick={() => navigate(`/profile/${u.username}`)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '8px', borderRadius: '8px', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(124, 58, 237, 0.08)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <Link 
+                      key={u.id} 
+                      to={`/profile/${u.username || u.id}`} 
+                      style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', padding: '8px', borderRadius: '8px', transition: 'background 0.2s', color: 'inherit' }} 
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(124, 58, 237, 0.08)'} 
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
                       {u.avatar_url ? (
                         <img src={u.avatar_url} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
                       ) : (
@@ -722,7 +734,7 @@ export default function Home() {
                         <div style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{u.name || "User"}</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>@{u.username} {u.bio ? `• ${u.bio.substring(0, 40)}${u.bio.length > 40 ? '...' : ''}` : ''}</div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>

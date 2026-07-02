@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import useAuth from "../hooks/useAuth";
+import { insertNotification } from "../utils/supabase-helpers";
+import { formatTimeOnly } from "../utils/format";
 import BackgroundParticles from "../components/BackgroundParticles";
 import ErrorBoundary from "../components/ErrorBoundary";
 
@@ -313,47 +317,81 @@ const styles = `
 `;
 
 export default function Messages() {
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [chatUsers, setChatUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState(null);
+  const [unreadChats, setUnreadChats] = useState(new Set());
+  const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
-  const init = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user;
-
-      if (!currentUser) return;
-
-      setUser(currentUser);
-      fetchChatUsers(currentUser.id);
-    } catch(err) {
-      console.error(err);
+  const selectedUserRef = useRef(selectedUser);
+  
+  const handleSelectUser = (u) => {
+    setSelectedUser(u);
+    selectedUserRef.current = u;
+    if (u) {
+      setUnreadChats(prev => {
+        const next = new Set(prev);
+        next.delete(u.id);
+        return next;
+      });
     }
   };
 
-  // ✅ build chat list from followers + following + existing messages
-  const fetchChatUsers = async (userId) => {
-    // people who follow me
+  useEffect(() => {
+    if (!user) return;
+    
+    console.log('Subscription setup. user:', user?.id, 'activeChatUser:', selectedUserRef.current?.id);
+
+    const subscription = supabase
+      .channel('messages-channel')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `receiver_id=eq.${user.id}`
+      }, async (payload) => {
+        console.log('New message payload:', payload);
+        const currentSelected = selectedUserRef.current;
+        if (currentSelected && payload.new.sender_id === currentSelected.id) {
+          const decryptedContent = await decryptMessage(payload.new.content, payload.new.iv, ENCRYPTION_KEY);
+          setMessages(prev => [...prev, { ...payload.new, content: decryptedContent }]);
+          setTimeout(scrollToBottom, 100);
+        } else {
+          setUnreadChats(prev => {
+            const next = new Set(prev);
+            next.add(payload.new.sender_id);
+            return next;
+          });
+        }
+      })
+      .subscribe((status) => {
+        console.log('Messages channel status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [user]);
+
+  const fetchChatUsers = useCallback(async (userId) => {
     const { data: followersData } = await supabase
       .from("follows")
       .select("follower_id")
       .eq("following_id", userId);
 
-    // people I follow
     const { data: followingData } = await supabase
       .from("follows")
       .select("following_id")
       .eq("follower_id", userId);
 
-    // people already in conversation with me
     const { data: sentMsgs } = await supabase
       .from("messages")
       .select("receiver_id")
@@ -378,18 +416,26 @@ export default function Messages() {
       return;
     }
 
-    const { data: profiles, error } = await supabase
+    const { data: profiles, error: chatErr } = await supabase
       .from("profiles")
       .select("id, name, avatar_url, username")
       .in("id", uniqueIds);
 
-    if (error) {
-      console.log("CHAT USERS ERROR:", error.message);
+    if (chatErr) {
+      setError("Failed to fetch chat users.");
       return;
     }
 
     setChatUsers(profiles || []);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchChatUsers(user.id);
+    }
+  }, [user, fetchChatUsers]);
+
+
 
   const fetchMessages = async (otherUserId) => {
     if (!user) return;
@@ -403,7 +449,7 @@ export default function Messages() {
       .order("created_at", { ascending: true });
 
     if (error) {
-      console.log("MESSAGES ERROR:", error.message);
+      setError("Failed to fetch messages.");
       return;
     }
 
@@ -416,6 +462,7 @@ export default function Messages() {
     );
 
     setMessages(decrypted);
+    setTimeout(scrollToBottom, 100);
   };
 
   const sendMessage = async () => {
@@ -453,22 +500,29 @@ export default function Messages() {
     ]);
 
     if (error) {
-      console.log("SEND ERROR:", error.message);
+      setError("Failed to send message.");
       setIsSending(false);
       return;
     }
 
     setText("");
+    
+    // Optimistic append
+    const tempMsg = {
+      id: `temp-${Date.now()}`,
+      sender_id: user.id,
+      receiver_id: selectedUser.id,
+      content: text,
+      created_at: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, tempMsg]);
+    setTimeout(scrollToBottom, 100);
+
     fetchMessages(selectedUser.id);
     fetchChatUsers(user.id);
     
     // Add notification
-    await supabase.from("notifications").insert({
-      user_id: selectedUser.id,
-      type: 'message',
-      from_user_id: user.id,
-      message: 'sent you a message'
-    });
+    await insertNotification(user.id, selectedUser.id, 'message', null, 'sent you a message');
     
     const elapsed = Date.now() - start;
     if (elapsed < 500) {
@@ -485,6 +539,12 @@ export default function Messages() {
         <BackgroundParticles variant="split" />
         <ErrorBoundary>
         <div className="messages-inner">
+          {error && (
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: '#ef4444', color: 'white', padding: '12px', textAlign: 'center', zIndex: 100, fontSize: '14px', fontWeight: '500' }}>
+              {error}
+              <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: 'white', marginLeft: '10px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+            </div>
+          )}
           {/* LEFT: Sidebar */}
           <div className={`chat-sidebar ${selectedUser ? 'hidden-mobile' : ''}`}>
             <div className="sidebar-header">
@@ -500,23 +560,32 @@ export default function Messages() {
                     key={u.id}
                     className={`chat-user-item ${selectedUser?.id === u.id ? "active" : ""}`}
                     onClick={() => {
-                      setSelectedUser(u);
+                      handleSelectUser(u);
                       fetchMessages(u.id);
                     }}
                   >
-                    {u.avatar_url ? (
-                      <img src={u.avatar_url} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                    ) : (
-                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
-                        {u.name ? u.name.charAt(0).toUpperCase() : "U"}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontWeight: '500', lineHeight: 1.2 }}>{u.name || "User"}</span>
-                      {u.username && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>@{u.username}</span>
+                    <Link
+                      to={`/profile/${u.username || u.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit' }}
+                    >
+                      {u.avatar_url ? (
+                        <img src={u.avatar_url} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
+                          {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+                        </div>
                       )}
-                    </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: '500', lineHeight: 1.2 }}>{u.name || "User"}</span>
+                        {u.username && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>@{u.username}</span>
+                        )}
+                      </div>
+                      {unreadChats.has(u.id) && (
+                        <div style={{ marginLeft: 'auto', width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }} title="New message" />
+                      )}
+                    </Link>
                   </div>
                 ))
               )}
@@ -528,20 +597,25 @@ export default function Messages() {
             {selectedUser ? (
               <>
                 <div className="chat-header">
-                  <button className="btn-back" onClick={() => setSelectedUser(null)}>←</button>
-                  {selectedUser.avatar_url ? (
-                    <img src={selectedUser.avatar_url} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
-                  ) : (
-                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>
-                      {selectedUser.name ? selectedUser.name.charAt(0).toUpperCase() : "U"}
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <h3 style={{ margin: 0, lineHeight: 1.2 }}>{selectedUser.name}</h3>
-                    {selectedUser.username && (
-                      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '2px' }}>@{selectedUser.username}</span>
+                  <button className="btn-back" onClick={() => handleSelectUser(null)}>←</button>
+                  <Link 
+                    to={`/profile/${selectedUser.username || selectedUser.id}`} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit' }}
+                  >
+                    {selectedUser.avatar_url ? (
+                      <img src={selectedUser.avatar_url} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>
+                        {selectedUser.name ? selectedUser.name.charAt(0).toUpperCase() : "U"}
+                      </div>
                     )}
-                  </div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <h3 style={{ margin: 0, lineHeight: 1.2 }}>{selectedUser.name}</h3>
+                      {selectedUser.username && (
+                        <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '2px' }}>@{selectedUser.username}</span>
+                      )}
+                    </div>
+                  </Link>
                   <span className="lock-badge">🔒 End-to-end encrypted</span>
                 </div>
 
@@ -555,10 +629,11 @@ export default function Messages() {
                         {msg.content}
                       </div>
                       <span className="message-timestamp">
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatTimeOnly(msg.created_at)}
                       </span>
                     </div>
                   ))}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 <div className="input-area">

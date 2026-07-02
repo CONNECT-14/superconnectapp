@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../supabaseClient";
+import useAuth from "../hooks/useAuth";
 import SkeletonLoader from "../components/SkeletonLoader";
 import BackgroundParticles from "../components/BackgroundParticles";
+import UserCard from "../components/UserCard";
 
 const styles = `
 
@@ -140,26 +141,17 @@ const styles = `
 `;
 
 export default function Followers() {
+  const { user } = useAuth();
   const [followers, setFollowers] = useState([]);
   const [myFollowing, setMyFollowing] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchFollowers();
-  }, []);
-
-  const fetchFollowers = async () => {
+  const fetchFollowers = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
+      if (!user) return;
 
-    if (!user) return;
-    
-    setCurrentUser(user);
-
-    const { data: followingData } = await supabase
+      const { data: followingData } = await supabase
       .from("follows")
       .select("following_id")
       .eq("follower_id", user.id);
@@ -176,7 +168,7 @@ export default function Followers() {
 
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, name, avatar_url, occupation")
+      .select("id, name, avatar_url, occupation, username")
       .in("id", ids);
 
     const merged = (data || []).map((f) => ({
@@ -187,25 +179,18 @@ export default function Followers() {
     setFollowers(merged);
     setLoading(false);
     } catch(err) {
-      console.error("Session error:", err);
+      setError("Failed to fetch followers.");
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const followBack = async (e, userIdToFollow) => {
-    e.stopPropagation();
-    if (!currentUser) return;
-    await supabase.from("follows").insert({ follower_id: currentUser.id, following_id: userIdToFollow });
-    setMyFollowing(prev => [...prev, userIdToFollow]);
-    
-    // Add notification
-    await supabase.from("notifications").insert({
-      user_id: userIdToFollow,
-      type: 'follow',
-      from_user_id: currentUser.id,
-      message: 'started following you'
-    });
-  };
+  useEffect(() => {
+    if (user) {
+      fetchFollowers();
+    }
+  }, [fetchFollowers, user]);
+
+
 
   return (
     <>
@@ -217,6 +202,13 @@ export default function Followers() {
             <h2>Followers</h2>
             <p className="page-subtitle">People who follow you</p>
           </div>
+
+          {error && (
+            <div style={{ background: '#ef4444', color: 'white', padding: '12px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', fontSize: '14px', fontWeight: '500' }}>
+              {error}
+              <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: 'white', marginLeft: '10px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+            </div>
+          )}
 
           <div className="section-label">Your Followers</div>
 
@@ -230,26 +222,16 @@ export default function Followers() {
           ) : (
             <div className="grid-container">
               {followers.map((f, i) => (
-                <div 
-                  key={i} 
-                  className="card-new"
-                  onClick={() => navigate(`/profile/${f.follower_id}`)}
-                >
-                  {f.profiles?.avatar_url ? (
-                    <img src={f.profiles.avatar_url} alt="avatar" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px' }} />
-                  ) : (
-                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', marginBottom: '12px' }}>
-                      {f.profiles?.name ? f.profiles.name.charAt(0).toUpperCase() : "U"}
-                    </div>
-                  )}
-                  <div style={{ fontWeight: '600', fontSize: '1.1rem' }}>{f.profiles?.name || "User"}</div>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>{f.profiles?.occupation || "Member"}</div>
-                  {!myFollowing.includes(f.follower_id) && (
-                    <button className="follow-back-btn" onClick={(e) => followBack(e, f.follower_id)}>
-                      Follow Back
-                    </button>
-                  )}
-                </div>
+                <UserCard 
+                  key={i}
+                  user={f}
+                  currentUser={user}
+                  variant="grid"
+                  initialIsFollowing={myFollowing.includes(f.follower_id)}
+                  onFollowToggle={(userId, isFollowing) => {
+                    setMyFollowing(prev => isFollowing ? [...prev, userId] : prev.filter(id => id !== userId));
+                  }}
+                />
               ))}
             </div>
           )}

@@ -1,6 +1,9 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import useAuth from "../hooks/useAuth";
+import { insertNotification } from "../utils/supabase-helpers";
+import { formatTimestamp } from "../utils/format";
 import PostCard from "../components/PostCard";
 import SkeletonLoader from "../components/SkeletonLoader";
 import BackgroundParticles from "../components/BackgroundParticles";
@@ -203,7 +206,7 @@ export default function PostDetail() {
   const [project, setProject] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -214,9 +217,6 @@ export default function PostDetail() {
   const init = async () => {
     setLoading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      setCurrentUser(sessionData?.session?.user || null);
-
       await Promise.all([
         fetchPost(),
         fetchComments()
@@ -231,7 +231,7 @@ export default function PostDetail() {
   const fetchPost = async () => {
     const { data, error } = await supabase
       .from("posts")
-      .select("*, profiles(name, avatar_url), projects(id, title)")
+      .select("*, profiles(name, avatar_url, username), projects(id, title)")
       .eq("id", postId)
       .single();
 
@@ -258,7 +258,7 @@ export default function PostDetail() {
   const fetchComments = async () => {
     const { data, error } = await supabase
       .from("comments")
-      .select("*, profiles(name, avatar_url)")
+      .select("*, profiles(name, avatar_url, username)")
       .eq("post_id", postId)
       .order("created_at", { ascending: true });
 
@@ -300,13 +300,7 @@ export default function PostDetail() {
       await fetchComments();
 
       if (post && currentUser.id !== post.user_id) {
-        await supabase.from("notifications").insert({
-          user_id: post.user_id,
-          type: 'comment',
-          from_user_id: currentUser.id,
-          post_id: postId,
-          message: 'commented on your post'
-        });
+        await insertNotification(currentUser.id, post.user_id, 'comment', postId, 'commented on your post');
       }
     } else {
       alert(error.message);
@@ -315,17 +309,6 @@ export default function PostDetail() {
 
   const handlePostDeleted = () => {
     navigate("/home");
-  };
-
-  const formatCommentTime = (timestamp) => {
-    if (!timestamp) return "";
-    const d = new Date(timestamp);
-    return d.toLocaleDateString(undefined, { 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   if (loading) {
@@ -393,17 +376,27 @@ export default function PostDetail() {
                 <div className="comment-list">
                   {comments.map((c) => (
                     <div key={c.id} className="detail-comment-item">
-                      <div className="comment-avatar">
+                      <Link 
+                        to={`/profile/${c.profiles?.username || c.user_id}`} 
+                        className="comment-avatar"
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                      >
                         {c.profiles?.avatar_url ? (
                           <img src={c.profiles.avatar_url} alt="avatar" />
                         ) : (
                           c.profiles?.name ? c.profiles.name.charAt(0).toUpperCase() : "U"
                         )}
-                      </div>
+                      </Link>
                       <div className="comment-content-wrap">
                         <div className="comment-header-row">
-                          <span className="comment-author-name">{c.profiles?.name || "User"}</span>
-                          <span className="comment-time">{formatCommentTime(c.created_at)}</span>
+                          <Link 
+                            to={`/profile/${c.profiles?.username || c.user_id}`}
+                            className="comment-author-name"
+                            style={{ textDecoration: 'none', color: 'inherit' }}
+                          >
+                            {c.profiles?.name || "User"}
+                          </Link>
+                          <span className="comment-time">{formatTimestamp(c.created_at)}</span>
                         </div>
                         <div className="comment-body-text">{c.content}</div>
                       </div>

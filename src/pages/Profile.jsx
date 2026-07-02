@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import useAuth from "../hooks/useAuth";
+import useProfile from "../hooks/useProfile";
 import SkeletonLoader from "../components/SkeletonLoader";
 import FollowModals from "../components/FollowModals";
-import imageCompression from 'browser-image-compression';
+import useImageUpload from "../hooks/useImageUpload";
 import BackgroundParticles from "../components/BackgroundParticles";
 import CollabCard from "../components/CollabCard";
 
@@ -710,7 +712,10 @@ const styles = `
 `;
 
 export default function Profile() {
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
+  const { profile: hookProfile } = useProfile(user?.id);
+  const { upload: uploadAvatar } = useImageUpload("avatars");
+  const { upload: uploadProjectImage } = useImageUpload("project-images");
   const [profileData, setProfileData] = useState(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editName, setEditName] = useState("");
@@ -862,54 +867,42 @@ export default function Profile() {
   }, [editUsername, isEditingProfile, profileData, user]);
 
   useEffect(() => {
-    getUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const getUser = async () => {
-    const start = Date.now();
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      const user = session?.user;
+    if (hookProfile) {
+      setProfileData(hookProfile);
+      setEditName(hookProfile.name || "");
+      setEditUsername(hookProfile.username || "");
+      setEditAge(hookProfile.age || "");
+      setEditOccupation(hookProfile.occupation || "");
+      setEditBio(hookProfile.bio || "");
+      setEditSkills(hookProfile.skills || []);
       
-      setUser(user);
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        if (profile) {
-          setProfileData(profile);
-          setEditName(profile.name || "");
-          setEditUsername(profile.username || "");
-          setEditAge(profile.age || "");
-          setEditOccupation(profile.occupation || "");
-          setEditBio(profile.bio || "");
-          setEditSkills(profile.skills || []);
-          
-          if (profile.username_is_auto_generated && !profile.username_prompt_dismissed) {
-             setShowUsernamePrompt(true);
-             setPromptUsername(profile.username || "");
-             setIsPromptUsernameValid(true);
-             setIsPromptUsernameAvailable(true);
-          }
-        }
-        
-        await fetchProjects(user.id);
-        await fetchMyPosts(user.id);
-        await fetchFollowStats(user.id);
-        fetchMyCollabs(user.id);
+      if (hookProfile.username_is_auto_generated && !hookProfile.username_prompt_dismissed) {
+         setShowUsernamePrompt(true);
+         setPromptUsername(hookProfile.username || "");
+         setIsPromptUsernameValid(true);
+         setIsPromptUsernameAvailable(true);
       }
-    } catch (err) {
-      console.error("Error fetching user:", err.message);
-    } finally {
-      const elapsed = Date.now() - start;
-      if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
-      setLoading(false);
     }
-  };
+  }, [hookProfile]);
+
+  useEffect(() => {
+    if (user) {
+      const loadAdditionalData = async () => {
+        const start = Date.now();
+        await Promise.all([
+          fetchProjects(user.id),
+          fetchMyPosts(user.id),
+          fetchFollowStats(user.id),
+          fetchMyCollabs(user.id)
+        ]);
+        const elapsed = Date.now() - start;
+        if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
+        setLoading(false);
+      };
+      loadAdditionalData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const fetchProjects = async (userId) => {
     const { data, error } = await supabase
@@ -1030,26 +1023,14 @@ export default function Profile() {
     let avatarUrl = profileData?.avatar_url || null;
 
     if (avatarFile) {
-      const options = { maxSizeMB: 1, maxWidthOrHeight: 1024, useWebWorker: true };
-      let finalFile = avatarFile;
-      try { finalFile = await imageCompression(avatarFile, options); } catch(e) { console.error(e); }
-
-      const fileName = `avatar-${Date.now()}-${finalFile.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(fileName, finalFile);
-
-      if (uploadError) {
-        alert("Avatar upload failed: " + uploadError.message);
+      avatarUrl = await uploadAvatar(avatarFile, `avatar-${Date.now()}-`);
+      if (!avatarUrl) {
+        alert("Avatar upload failed");
         setSavingProfile(false);
         return;
       }
-      
-      const { data } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(fileName);
-      avatarUrl = data.publicUrl;
     }
+
 
     const { error } = await supabase
       .from("profiles")
@@ -1103,21 +1084,14 @@ export default function Profile() {
     if (!file || !user) return;
     setIsUploadingBanner(true);
     
-    const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
-    let finalFile = file;
-    try { finalFile = await imageCompression(file, options); } catch(e) { console.error(e); }
+    const bannerUrl = await uploadAvatar(file, `banner-${Date.now()}-`);
 
-    const fileName = `banner-${Date.now()}-${finalFile.name}`;
-    const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, finalFile);
-
-    if (uploadError) {
-      alert("Banner upload failed: " + uploadError.message);
+    if (!bannerUrl) {
+      alert("Banner upload failed");
       setIsUploadingBanner(false);
       return;
     }
     
-    const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
-    const bannerUrl = data.publicUrl;
     
     const { error } = await supabase.from("profiles").update({ banner_url: bannerUrl }).eq("id", user.id);
     if (error) alert("Error saving banner: " + error.message);
@@ -1131,21 +1105,14 @@ export default function Profile() {
     if (!file || !user) return;
     setIsUploadingAvatar(true);
     
-    const options = { maxSizeMB: 1, maxWidthOrHeight: 1024, useWebWorker: true };
-    let finalFile = file;
-    try { finalFile = await imageCompression(file, options); } catch(e) { console.error(e); }
+    const avatarUrl = await uploadAvatar(file, `avatar-${Date.now()}-`);
 
-    const fileName = `avatar-${Date.now()}-${finalFile.name}`;
-    const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, finalFile);
-
-    if (uploadError) {
-      alert("Avatar upload failed: " + uploadError.message);
+    if (!avatarUrl) {
+      alert("Avatar upload failed");
       setIsUploadingAvatar(false);
       return;
     }
     
-    const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
-    const avatarUrl = data.publicUrl;
     
     const { error } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", user.id);
     if (error) alert("Error saving avatar: " + error.message);
@@ -1166,21 +1133,12 @@ export default function Profile() {
     let imageUrl = null;
 
     if (image) {
-      const fileName = `covers-${Date.now()}-${image.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("project-images")
-        .upload(fileName, image);
-
-      if (uploadError) {
-        alert("Image upload failed: " + uploadError.message);
+      imageUrl = await uploadProjectImage(image, `covers-${Date.now()}-`);
+      if (!imageUrl) {
+        alert("Image upload failed");
         setUploading(false);
         return;
       }
-      
-      const { data } = supabase.storage
-        .from("project-images")
-        .getPublicUrl(fileName);
-      imageUrl = data.publicUrl;
     }
 
     const { data, error } = await supabase

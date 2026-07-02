@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
-import imageCompression from 'browser-image-compression';
+import useAuth from "../hooks/useAuth";
+import useImageUpload from "../hooks/useImageUpload";
 
 export default function CreatePost({ onPostCreated }) {
   const [content, setContent] = useState("");
@@ -9,6 +10,9 @@ export default function CreatePost({ onPostCreated }) {
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState("Discussion");
   const [topic, setTopic] = useState("Design");
+
+  const { user } = useAuth();
+  const { upload: uploadImage } = useImageUpload('post-images');
 
   // 📸 Handle multiple image select
   const handleImageChange = (e) => {
@@ -31,18 +35,12 @@ export default function CreatePost({ onPostCreated }) {
       return;
     }
 
-    setLoading(true);
-
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.getSession();
-
-    if (sessionError || !sessionData.session?.user) {
+    if (!user) {
       alert("User not logged in");
-      setLoading(false);
       return;
     }
 
-    const user = sessionData.session.user;
+    setLoading(true);
 
     // 🛑 Rate Limit Check
     const { data: isAllowed, error: rlError } = await supabase.rpc('check_rate_limit', {
@@ -64,29 +62,13 @@ export default function CreatePost({ onPostCreated }) {
 
     // ================= MULTIPLE IMAGE UPLOAD =================
     if (images.length > 0) {
-      const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
       for (let img of images) {
-        let finalImg = img;
-        try { finalImg = await imageCompression(img, options); } catch(e) { console.error(e); }
-
-        const fileName = `${Date.now()}-${finalImg.name}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("post-images")
-          .upload(fileName, finalImg);
-
-        if (uploadError) {
-          console.log("UPLOAD ERROR:", uploadError.message);
-          alert(uploadError.message);
+        const url = await uploadImage(img, `${Date.now()}-`);
+        if (!url) {
           setLoading(false);
           return;
         }
-
-        const { data } = supabase.storage
-          .from("post-images")
-          .getPublicUrl(fileName);
-
-        imageUrls.push(data.publicUrl);
+        imageUrls.push(url);
       }
     }
 

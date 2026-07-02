@@ -1,26 +1,21 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import useAuth from "../hooks/useAuth";
 import { supabase } from "../supabaseClient";
+import { timeAgo } from "../utils/format";
 import "./PostCard.css";
 
 export default function ProjectFeedCard({ project }) {
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [following, setFollowing] = useState(false);
   const [isFollowingAction, setIsFollowingAction] = useState(false);
   const [isHiring, setIsHiring] = useState(false);
 
   useEffect(() => {
-    const init = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUser = sessionData?.session?.user;
-      if (!currentUser) return;
-      setUser(currentUser);
-      checkFollow(currentUser);
-    };
-    init();
+    if (user) checkFollow(user);
     checkHiring();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.id]);
+  }, [project.id, user]);
 
   const checkHiring = async () => {
     const { count } = await supabase
@@ -65,12 +60,7 @@ export default function ProjectFeedCard({ project }) {
   const creatorName = project.profiles?.name || "User";
   const avatarUrl = project.profiles?.avatar_url;
   
-  // Format timestamp safely
-  let timeStr = "";
-  if (project.created_at) {
-    const d = new Date(project.created_at);
-    timeStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
+  const timeStr = project.created_at ? timeAgo(project.created_at) : '';
 
   return (
     <div className="post-card" style={{ position: 'relative' }}>
@@ -89,7 +79,11 @@ export default function ProjectFeedCard({ project }) {
       )}
       {/* HEADER */}
       <div className="post-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="user-info" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <Link 
+          to={`/profile/${project.profiles?.username || project.user_id}`}
+          className="user-info" 
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit' }}
+        >
           <div className="avatar" style={{ overflow: 'hidden', width: '40px', height: '40px', borderRadius: '50%' }}>
             {avatarUrl ? (
               <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -113,7 +107,7 @@ export default function ProjectFeedCard({ project }) {
             </div>
             <span style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>created a project</span>
           </div>
-        </div>
+        </Link>
         <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
           {timeStr}
         </div>

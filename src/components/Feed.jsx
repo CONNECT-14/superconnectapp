@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import PostCard from "./PostCard";
 import ProjectFeedCard from "./ProjectFeedCard";
@@ -442,15 +443,17 @@ if (isInitial) {
               <div className="suggestion-list">
                 {suggestedUsers.map(u => (
                   <div key={u.id} className="suggestion-item">
-                    {u.avatar_url ? (
-                      <img src={u.avatar_url} alt="Avatar" />
-                    ) : (
-                      <div className="placeholder">{u.name ? u.name.charAt(0) : "U"}</div>
-                    )}
-                    <div className="suggestion-info">
-                      <div className="suggestion-name">{u.name || "User"}</div>
-                      <div className="suggestion-meta">{u.occupation || "Member"}</div>
-                    </div>
+                    <Link to={`/profile/${u.username || u.id}`} style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit', flex: 1 }}>
+                      {u.avatar_url ? (
+                        <img src={u.avatar_url} alt="Avatar" />
+                      ) : (
+                        <div className="placeholder">{u.name ? u.name.charAt(0) : "U"}</div>
+                      )}
+                      <div className="suggestion-info">
+                        <div className="suggestion-name">{u.name || "User"}</div>
+                        <div className="suggestion-meta">{u.occupation || "Member"}</div>
+                      </div>
+                    </Link>
                     <button className="suggestion-btn" onClick={() => handleFollowUser(u.id)} disabled={followingProgress[u.id]} style={{ opacity: followingProgress[u.id] ? 0.7 : 1 }}>
                       {followingProgress[u.id] ? <div className="btn-spinner"></div> : "Follow"}
                     </button>

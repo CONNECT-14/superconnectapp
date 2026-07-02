@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabaseClient";
+import UserCard from "../components/UserCard";
+import useAuth from "../hooks/useAuth";
 import Feed from "../components/Feed";
 import BackgroundParticles from "../components/BackgroundParticles";
 import CollabCard from "../components/CollabCard";
 import PostCollabModal from "../components/PostCollabModal";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useDebounce } from "../hooks/useDebounce";
+import { useRef } from "react";
 import ErrorBoundary from "../components/ErrorBoundary";
 
 const SKILL_FILTERS = ['All', 'React', 'Python', 'UI/UX', 'Backend', 'Frontend', 'AI', 'Mobile', 'Design'];
@@ -127,6 +130,7 @@ const styles = `
     font-weight: 600;
     cursor: pointer;
     transition: opacity 0.2s;
+    flex-shrink: 0;
   }
   .rs-btn:hover { opacity: 0.9; }
 
@@ -321,7 +325,7 @@ const styles = `
 `;
 
 export default function ExplorePage() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user: currentUser } = useAuth();
 
   // Feed state
   const [feedType, setFeedType] = useState('All'); // All, Posts, Projects, Collabs
@@ -339,8 +343,8 @@ export default function ExplorePage() {
 
   // Sidebar state
   const [suggestedUsers, setSuggestedUsers] = useState([]);
+  const [followingUserMap, setFollowingUserMap] = useState({});
   const [trendingProjects, setTrendingProjects] = useState([]);
-  const [followingUserProgress, setFollowingUserProgress] = useState({});
   const [trackingProjectProgress, setTrackingProjectProgress] = useState({});
 
   // Collabs tab state
@@ -351,11 +355,56 @@ export default function ExplorePage() {
   const [collabRefreshKey, setCollabRefreshKey] = useState(0);
   const [toast, setToast] = useState(null);
 
+  // Users tab state
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersPage, setUsersPage] = useState(0);
+  const [usersHasMore, setUsersHasMore] = useState(true);
+  const usersSentinelRef = useRef(null);
+  
+  const [error, setError] = useState(null);
+
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    fetchInitialData();
-  }, []);
+    const params = new URLSearchParams(location.search);
+    const filter = params.get('filter');
+    if (filter) {
+      const formatted = filter.charAt(0).toUpperCase() + filter.slice(1).toLowerCase();
+      if (['All', 'Posts', 'Projects', 'Collabs', 'Users'].includes(formatted)) {
+        setFeedType(formatted);
+      }
+    }
+  }, [location.search]);
+
+  // Auto trigger pagination when sentinel intersects
+  useEffect(() => {
+    if (feedType !== 'Users' || !usersHasMore || usersLoading) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setUsersPage(p => p + 1);
+      }
+    });
+    if (usersSentinelRef.current) observer.observe(usersSentinelRef.current);
+    return () => observer.disconnect();
+  }, [feedType, usersHasMore, usersLoading]);
+
+  useEffect(() => {
+    if (feedType === 'Users') {
+      setUsersPage(0);
+      fetchUsers(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedType, searchTrigger]);
+
+  useEffect(() => {
+    if (feedType === 'Users' && usersPage > 0) {
+      fetchUsers(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usersPage]);
+
 
   useEffect(() => {
     if (feedType === 'Collabs') {
@@ -364,19 +413,17 @@ export default function ExplorePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedType, collabRefreshKey]);
 
-  const fetchInitialData = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    let userId = null;
-    if (session?.user) {
-      userId = session.user.id;
-      setCurrentUser(session.user);
-    }
+  const fetchInitialData = useCallback(async (user) => {
+    let userId = user?.id || null;
 
     // Suggested Users
     let followingIds = [];
     if (userId) {
       const { data: followingData } = await supabase.from("follows").select("following_id").eq("follower_id", userId);
       followingIds = followingData?.map(f => f.following_id) || [];
+      const fMap = {};
+      followingIds.forEach(id => { fMap[id] = true; });
+      setFollowingUserMap(fMap);
     }
     
     let userQuery = supabase.from("profiles").select("*").limit(20);
@@ -399,7 +446,11 @@ export default function ExplorePage() {
     const { data: tProjects } = await projectQuery;
     const filteredProjects = (tProjects || []).filter(p => !pFollowingIds.includes(p.id)).slice(0, 4);
     setTrendingProjects(filteredProjects);
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchInitialData(currentUser);
+  }, [currentUser, fetchInitialData]);
 
   const fetchCollabs = useCallback(async () => {
     setCollabsLoading(true);
@@ -411,19 +462,41 @@ export default function ExplorePage() {
 
     if (!error && data) {
       setCollabs(data);
+    } else if (error) {
+      setError("Failed to load collaborations.");
     }
     setCollabsLoading(false);
   }, []);
 
-  const handleFollowUser = async (targetId) => {
-    if (!currentUser) return;
-    setFollowingUserProgress(prev => ({ ...prev, [targetId]: true }));
-    const { error } = await supabase.from("follows").insert({ follower_id: currentUser.id, following_id: targetId });
-    if (!error) {
-      setSuggestedUsers(prev => prev.filter(u => u.id !== targetId));
+  useEffect(() => {
+    if (feedType === 'Collabs') {
+      fetchCollabs();
     }
-    setFollowingUserProgress(prev => ({ ...prev, [targetId]: false }));
-  };
+  }, [feedType, collabRefreshKey, fetchCollabs]);
+
+  const fetchUsers = useCallback(async (isInitial = true) => {
+    setUsersLoading(true);
+    const currentPage = isInitial ? 0 : usersPage;
+    const { data, error } = await supabase.rpc('search_profiles', {
+      search_query: searchTrigger || '',
+      max_limit: 15,
+      result_offset: currentPage * 15
+    });
+    
+    if (!error && data) {
+      // Exclude self
+      const filtered = currentUser ? data.filter(u => u.id !== currentUser.id) : data;
+      if (data.length < 15) setUsersHasMore(false);
+      else setUsersHasMore(true);
+      
+      setUsers(prev => isInitial ? filtered : [...prev, ...filtered]);
+      if (!isInitial) setUsersPage(currentPage);
+    } else {
+      setUsersHasMore(false);
+      if (error) setError("Failed to fetch users.");
+    }
+    setUsersLoading(false);
+  }, [searchTrigger, usersPage, currentUser]);
 
   const handleFollowProject = async (targetId) => {
     if (!currentUser) return;
@@ -431,6 +504,8 @@ export default function ExplorePage() {
     const { error } = await supabase.from("project_followers").insert({ user_id: currentUser.id, project_id: targetId });
     if (!error) {
       setTrendingProjects(prev => prev.filter(p => p.id !== targetId));
+    } else {
+      setError("Failed to track project.");
     }
     setTrackingProjectProgress(prev => ({ ...prev, [targetId]: false }));
   };
@@ -468,6 +543,12 @@ export default function ExplorePage() {
         <BackgroundParticles variant="split" />
         
         <div className="home-layout">
+          {error && (
+            <div style={{ position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', background: '#ef4444', color: 'white', padding: '12px 24px', borderRadius: '8px', zIndex: 9999, fontSize: '14px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+              {error}
+              <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+            </div>
+          )}
           
           {/* LEFT SIDEBAR */}
           <div className="left-sidebar">
@@ -476,22 +557,16 @@ export default function ExplorePage() {
               <div style={{fontSize:'12px', color:'var(--ink-muted)'}}>No suggestions right now</div>
             ) : (
               suggestedUsers.map(u => (
-                <div key={u.id} className="rs-user">
-                  {u.avatar_url ? (
-                    <img src={u.avatar_url} alt="User" />
-                  ) : (
-                    <div className="rs-user-placeholder">{u.name ? u.name.charAt(0).toUpperCase() : "U"}</div>
-                  )}
-                  <div className="rs-user-info">
-                    <div className="rs-user-name" onClick={() => navigate(`/profile/${u.username || u.id}`)} style={{cursor:'pointer'}}>{u.name || "User"}</div>
-                    <div className="rs-user-occ">{u.occupation || "Member"}</div>
-                  </div>
-                  {currentUser && (
-                    <button className="rs-btn" onClick={() => handleFollowUser(u.id)} disabled={followingUserProgress[u.id]} style={{ opacity: followingUserProgress[u.id] ? 0.7 : 1 }}>
-                      {followingUserProgress[u.id] ? <div className="btn-spinner"></div> : "Follow"}
-                    </button>
-                  )}
-                </div>
+                <UserCard 
+                  key={u.id}
+                  user={u}
+                  currentUser={currentUser}
+                  variant="list"
+                  initialIsFollowing={followingUserMap[u.id] || false}
+                  onFollowToggle={(userId, isFollowing) => {
+                    setFollowingUserMap(prev => ({ ...prev, [userId]: isFollowing }));
+                  }}
+                />
               ))
             )}
 
@@ -540,7 +615,7 @@ export default function ExplorePage() {
               <input
                 type="text"
                 className="explore-search-input"
-                placeholder="Search posts or projects... (Press Enter)"
+                placeholder={feedType === 'Users' ? 'Search users by name or @username...' : 'Search posts or projects... (Press Enter)'}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 onKeyDown={handleSearch}
@@ -548,11 +623,14 @@ export default function ExplorePage() {
             </div>
 
             <div className="feed-tabs">
-              {['All', 'Posts', 'Projects', 'Collabs'].map(tab => (
+              {['All', 'Posts', 'Projects', 'Collabs', 'Users'].map(tab => (
                 <button
                   key={tab}
                   className={`feed-tab ${feedType === tab ? 'active' : ''}`}
-                  onClick={() => setFeedType(tab)}
+                  onClick={() => {
+                    setFeedType(tab);
+                    navigate(tab === 'All' ? '/explore' : `/explore?filter=${tab.toLowerCase()}`);
+                  }}
                 >
                   {tab === 'Collabs' ? '🤝 Collabs' : tab}
                 </button>
@@ -620,6 +698,37 @@ export default function ExplorePage() {
                         onEditRequest={() => {/* TODO: edit flow */}}
                       />
                     ))}
+                  </div>
+                )}
+              </div>
+            ) : feedType === 'Users' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {usersLoading && users.length === 0 ? (
+                  <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    Loading users...
+                  </div>
+                ) : users.length === 0 ? (
+                  <div className="collab-empty">
+                    <div className="collab-empty-icon">👥</div>
+                    <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+                      No users found
+                    </div>
+                  </div>
+                ) : (
+                  <div className="collab-list">
+                    {users.map(u => (
+                      <UserCard 
+                        key={u.id}
+                        user={u}
+                        currentUser={currentUser}
+                        variant="list"
+                        initialIsFollowing={followingUserMap[u.id] || false}
+                        onFollowToggle={(userId, isFollowing) => {
+                          setFollowingUserMap(prev => ({ ...prev, [userId]: isFollowing }));
+                        }}
+                      />
+                    ))}
+                    {usersHasMore && <div ref={usersSentinelRef} style={{ height: "20px" }}></div>}
                   </div>
                 )}
               </div>

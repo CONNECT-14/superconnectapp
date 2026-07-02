@@ -1,7 +1,9 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
-import { useNavigate } from "react-router-dom";
+import useAuth from "../hooks/useAuth";
+import useFollow from "../hooks/useFollow";
+import useProfile from "../hooks/useProfile";
 import CollabCard from "../components/CollabCard";
 import ErrorBoundary from "../components/ErrorBoundary";
 import SkeletonLoader from "../components/SkeletonLoader";
@@ -402,12 +404,21 @@ export default function UserProfile() {
   const [resolvedId, setResolvedId] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [projects, setProjects] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
 
-  const [followersCount, setFollowersCount] = useState(0);
-  const [followingCount, setFollowingCount] = useState(0);
-  const [isFollowingUser, setIsFollowingUser] = useState(false);
+  const { profile: hookProfile } = useProfile(identifier);
+  
+  const { 
+    isFollowing: isFollowingUser, 
+    toggleFollow: handleFollowUser, 
+    loading: isTogglingFollow, 
+    followersCount, 
+    followingCount, 
+    fetchFollowStats, 
+    checkFollowStatus
+  } = useFollow(currentUser?.id, resolvedId);
+
   const [modalType, setModalType] = useState(null);
 
   // Posts state
@@ -417,77 +428,46 @@ export default function UserProfile() {
   const [postComments, setPostComments] = useState({});
   const [showPostComments, setShowPostComments] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
-  const [isTogglingFollow, setIsTogglingFollow] = useState(false);
   const [isCommenting, setIsCommenting] = useState({});
 
   // Collab state
   const [userCollabs, setUserCollabs] = useState([]);
 
   useEffect(() => {
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [identifier]);
-
-  const init = async () => {
-    const start = Date.now();
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      setCurrentUser(user);
-
-      const rId = await fetchUser();
-      if (!rId) return;
-      setResolvedId(rId);
-
-      await fetchProjects(rId);
-      await fetchUserPosts(rId);
-      await fetchFollowStats(rId);
-      if (user) await checkFollowStatus(user.id, rId);
-      fetchUserCollabs(rId);
-      
-    } catch(err) {
-      console.error(err);
-    } finally {
-      const elapsed = Date.now() - start;
-      if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
-      setLoading(false);
-    }
-  };
-
-  const fetchUser = async () => {
-    let { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .ilike("username", identifier)
-      .single();
-    
-    if (!data) {
-      const { data: byName } = await supabase
-        .from("profiles")
-        .select("*")
-        .ilike("name", identifier)
-        .single();
-      if (byName) {
-        navigate(`/profile/${byName.username}`, { replace: true });
-        return null;
+    if (hookProfile) {
+      if (hookProfile.username.toLowerCase() !== identifier.toLowerCase()) {
+        navigate(`/profile/${hookProfile.username}`, { replace: true });
+      } else {
+        setResolvedId(hookProfile.id);
+        setUserProfile(hookProfile);
       }
     }
+  }, [hookProfile, identifier, navigate]);
 
-    if (!data && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier)) {
-        const { data: byId } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", identifier)
-          .single();
-        if (byId) {
-          navigate(`/profile/${byId.username}`, { replace: true });
-          return null;
+  useEffect(() => {
+    if (resolvedId) {
+      const loadAdditionalData = async () => {
+        const start = Date.now();
+        try {
+          await Promise.all([
+            fetchProjects(resolvedId),
+            fetchUserPosts(resolvedId),
+            fetchFollowStats(resolvedId),
+            currentUser ? checkFollowStatus(currentUser.id, resolvedId) : Promise.resolve(),
+            fetchUserCollabs(resolvedId)
+          ]);
+        } catch (err) {
+          console.error(err);
+        } finally {
+          const elapsed = Date.now() - start;
+          if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
+          setLoading(false);
         }
+      };
+      loadAdditionalData();
     }
-
-    setUserProfile(data);
-    return data?.id;
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedId, currentUser]);
 
   const fetchProjects = async (userId) => {
     const { data } = await supabase
@@ -508,21 +488,35 @@ export default function UserProfile() {
     setUserCollabs(data || []);
   };
 
-  const fetchFollowStats = async (userId) => {
-    const { count: followers } = await supabase
-      .from("follows")
-      .select("*", { count: "exact", head: true })
-      .eq("following_id", userId);
-
-    const { count: following } = await supabase
-      .from("follows")
-      .select("*", { count: "exact", head: true })
-      .eq("follower_id", userId);
-
-    setFollowersCount(followers || 0);
-    setFollowingCount(following || 0);
+  const fetchPostComments = async (postId) => {
+    const { data } = await supabase
+      .from("comments")
+      .select(`*, profiles(name, avatar_url, username)`)
+      .eq("post_id", postId)
+      .order("created_at", { ascending: false });
+    setPostComments(prev => ({ ...prev, [postId]: data || [] }));
   };
 
+  const togglePostComments = async (postId) => {
+    const isShowing = showPostComments[postId];
+    if (!isShowing) await fetchPostComments(postId);
+    setShowPostComments(prev => ({ ...prev, [postId]: !isShowing }));
+  };
+
+  const handlePostComment = async (postId) => {
+    if (!currentUser || !commentInputs[postId]?.trim()) return;
+    setIsCommenting(prev => ({ ...prev, [postId]: true }));
+    const { error } = await supabase.from("comments").insert([{
+      user_id: currentUser.id,
+      post_id: postId,
+      content: commentInputs[postId],
+    }]);
+    if (!error) {
+      setCommentInputs(prev => ({ ...prev, [postId]: "" }));
+      await fetchPostComments(postId);
+    }
+    setIsCommenting(prev => ({ ...prev, [postId]: false }));
+  };
   const fetchUserPosts = async (userId) => {
     const { data, error } = await supabase
       .from("posts")
@@ -557,81 +551,6 @@ export default function UserProfile() {
       likesMap[post.id] = likes?.length || 0;
     }
     setPostLikes(likesMap);
-  };
-
-  const fetchPostComments = async (postId) => {
-    const { data } = await supabase
-      .from("comments")
-      .select(`*, profiles(name, avatar_url, username)`)
-      .eq("post_id", postId)
-      .order("created_at", { ascending: false });
-    setPostComments(prev => ({ ...prev, [postId]: data || [] }));
-  };
-
-  const togglePostComments = async (postId) => {
-    const isShowing = showPostComments[postId];
-    if (!isShowing) await fetchPostComments(postId);
-    setShowPostComments(prev => ({ ...prev, [postId]: !isShowing }));
-  };
-
-  const handlePostComment = async (postId) => {
-    if (!currentUser || !commentInputs[postId]?.trim()) return;
-    setIsCommenting(prev => ({ ...prev, [postId]: true }));
-    const { error } = await supabase.from("comments").insert([{
-      user_id: currentUser.id,
-      post_id: postId,
-      content: commentInputs[postId],
-    }]);
-    if (!error) {
-      setCommentInputs(prev => ({ ...prev, [postId]: "" }));
-      await fetchPostComments(postId);
-    }
-    setIsCommenting(prev => ({ ...prev, [postId]: false }));
-  };
-
-  const checkFollowStatus = async (currentUserId, targetId) => {
-    const { data } = await supabase
-      .from("follows")
-      .select("*")
-      .eq("follower_id", currentUserId)
-      .eq("following_id", targetId || resolvedId);
-    setIsFollowingUser(data?.length > 0);
-  };
-
-  const handleFollowUser = async () => {
-    if (!currentUser || !resolvedId || isTogglingFollow) return;
-    setIsTogglingFollow(true);
-    
-    const previousFollowing = isFollowingUser;
-    
-    // Optimistic Update
-    setIsFollowingUser(!previousFollowing);
-    setFollowersCount(prev => previousFollowing ? prev - 1 : prev + 1);
-
-    if (previousFollowing) {
-      const { error } = await supabase.from("follows").delete().match({ follower_id: currentUser.id, following_id: resolvedId });
-      if (error) {
-        setIsFollowingUser(previousFollowing);
-        setFollowersCount(prev => prev + 1);
-        alert("Failed to unfollow user.");
-      }
-    } else {
-      const { error } = await supabase.from("follows").insert({ follower_id: currentUser.id, following_id: resolvedId });
-      if (error) {
-        setIsFollowingUser(previousFollowing);
-        setFollowersCount(prev => prev - 1);
-        alert("Failed to follow user.");
-      } else {
-        // Add notification (fire and forget)
-        supabase.from("notifications").insert({
-          user_id: resolvedId,
-          type: 'follow',
-          from_user_id: currentUser.id,
-          message: 'started following you'
-        }).then();
-      }
-    }
-    setIsTogglingFollow(false);
   };
 
   if (loading) return (

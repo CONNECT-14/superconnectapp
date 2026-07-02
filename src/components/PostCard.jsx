@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import useAuth from "../hooks/useAuth";
 import { supabase } from "../supabaseClient";
+import { insertNotification } from "../utils/supabase-helpers";
 import "./PostCard.css";
 
 export default function PostCard({ post, onDelete, isDetail = false }) {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
 
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -23,23 +25,13 @@ export default function PostCard({ post, onDelete, isDetail = false }) {
 
   // ================= INIT =================
   useEffect(() => {
-    const init = async () => {
-      // ✅ Use getSession() instead of getUser() - avoids concurrent lock contention
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUser = sessionData?.session?.user;
-
-      if (!currentUser) return;
-
-      setUser(currentUser);
-
-      await fetchLikes();
-      await checkLike(currentUser);
-      await checkFollow(currentUser);
-    };
-
-    init();
+    if (user) {
+      fetchLikes();
+      checkLike(user);
+      checkFollow(user);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [post.id]);
+  }, [post.id, user]);
 
   // ================= LIKE =================
 
@@ -101,13 +93,7 @@ export default function PostCard({ post, onDelete, isDetail = false }) {
       } else {
         if (user.id !== post.user_id) {
           // Fire and forget notification
-          supabase.from("notifications").insert({
-            user_id: post.user_id,
-            type: 'like',
-            from_user_id: user.id,
-            post_id: post.id,
-            message: 'liked your post'
-          }).then();
+          insertNotification(user.id, post.user_id, 'like', post.id, 'liked your post').then();
         }
       }
     }
@@ -249,13 +235,7 @@ export default function PostCard({ post, onDelete, isDetail = false }) {
       fetchComments();
       
       if (user.id !== post.user_id) {
-        await supabase.from("notifications").insert({
-          user_id: post.user_id,
-          type: 'comment',
-          from_user_id: user.id,
-          post_id: post.id,
-          message: 'commented on your post'
-        });
+        await insertNotification(user.id, post.user_id, 'comment', post.id, 'commented on your post');
       }
     }
     
@@ -297,7 +277,14 @@ export default function PostCard({ post, onDelete, isDetail = false }) {
 
       {/* HEADER */}
       <div className="post-header">
-        <div className="user-info" style={{ alignItems: 'center' }}>
+        <div 
+          className="user-info" 
+          style={{ alignItems: 'center', cursor: 'pointer' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/profile/${post.profiles?.username || post.user_id}`);
+          }}
+        >
           <div className="avatar" style={{ overflow: 'hidden' }}>
             {post.profiles?.avatar_url ? (
               <img src={post.profiles.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -367,7 +354,14 @@ export default function PostCard({ post, onDelete, isDetail = false }) {
           <div className="comments-container" onClick={(e) => e.stopPropagation()}>
             {comments.slice(0, 4).map((c) => (
               <div key={c.id} className="comment-item">
-                <span className="comment-user" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span 
+                  className="comment-user" 
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/profile/${c.profiles?.username || c.user_id}`);
+                  }}
+                >
                   {c.profiles?.avatar_url ? (
                     <img src={c.profiles.avatar_url} alt="avatar" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
                   ) : (

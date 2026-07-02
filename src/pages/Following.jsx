@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import useAuth from "../hooks/useAuth";
 import SkeletonLoader from "../components/SkeletonLoader";
 import BackgroundParticles from "../components/BackgroundParticles";
+import UserCard from "../components/UserCard";
 
 const styles = `
   :root {
@@ -148,8 +150,7 @@ const styles = `
 `;
 
 export default function Following() {
-  // eslint-disable-next-line no-unused-vars
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [following, setFollowing] = useState([]);
   const [projectFollowing, setProjectFollowing] = useState([]); // ✅ NEW
   const [loading, setLoading] = useState(true);
@@ -157,30 +158,25 @@ export default function Following() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const init = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user;
-
-    if (!currentUser) return;
-
-    setUser(currentUser);
-
-    await Promise.all([
-      fetchFollowing(currentUser.id),
-      fetchProjectFollowing(currentUser.id)
-    ]);
+    const init = async () => {
+      try {
+        if (!user) return;
+        setLoading(true);
+        await Promise.all([
+          fetchFollowing(user.id),
+          fetchProjectFollowing(user.id)
+        ]);
+        setLoading(false);
+      } catch(err) {
+        console.error("Session error:", err);
+        setLoading(false);
+      }
+    };
     
-    setLoading(false);
-    } catch(err) {
-      console.error("Session error:", err);
-      setLoading(false);
+    if (user) {
+      init();
     }
-  };
+  }, [user]);
 
   // 🔥 FETCH FOLLOWING USERS
   const fetchFollowing = async (userId) => {
@@ -203,7 +199,7 @@ export default function Following() {
 
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, name, avatar_url")
+      .select("id, name, avatar_url, username")
       .in("id", ids);
 
     const merged = data.map((f) => ({
@@ -259,13 +255,6 @@ export default function Following() {
     setProjectFollowing(merged);
   };
 
-  const unfollowUser = async (e, followingId) => {
-    e.stopPropagation();
-    if (!user) return;
-    await supabase.from("follows").delete().match({ follower_id: user.id, following_id: followingId });
-    setFollowing(prev => prev.filter(f => f.following_id !== followingId));
-  };
-
   const unfollowProject = async (e, projectId) => {
     e.stopPropagation();
     if (!user) return;
@@ -297,24 +286,18 @@ export default function Following() {
           ) : (
             <div className="grid-container">
               {following.map((f, index) => (
-                <div
+                <UserCard 
                   key={index}
-                  className="card-new"
-                  onClick={() => navigate(`/profile/${f.following_id}`)}
-                >
-                  {f.profiles?.avatar_url ? (
-                    <img src={f.profiles.avatar_url} alt="avatar" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px' }} />
-                  ) : (
-                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', marginBottom: '12px' }}>
-                      {f.profiles?.name ? f.profiles.name.charAt(0).toUpperCase() : "U"}
-                    </div>
-                  )}
-                  <div style={{ fontWeight: '600', fontSize: '1.1rem' }}>{f.profiles?.name || "User"}</div>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>{f.profiles?.occupation || "Member"}</div>
-                  <button className="unfollow-btn" onClick={(e) => unfollowUser(e, f.following_id)}>
-                    Unfollow
-                  </button>
-                </div>
+                  user={f}
+                  currentUser={user}
+                  variant="grid"
+                  initialIsFollowing={true}
+                  onFollowToggle={(userId, isFollowing) => {
+                    if (!isFollowing) {
+                      setFollowing(prev => prev.filter(item => item.following_id !== userId));
+                    }
+                  }}
+                />
               ))}
             </div>
           )}
@@ -344,7 +327,7 @@ export default function Following() {
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                     </div>
                   )}
-                  <div style={{ fontWeight: 'bold', fontSize: '1rem' }}>{p.project?.title || "Project"}</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1rem', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>{p.project?.title || "Project"}</div>
                   <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>by {p.creator?.name || "User"}</div>
                   <button className="unfollow-btn" onClick={(e) => unfollowProject(e, p.project_id)}>
                     Untrack Project

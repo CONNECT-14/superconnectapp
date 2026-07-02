@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import UserCard from "./UserCard";
 
 const styles = `
   .modal-overlay {
@@ -141,7 +142,7 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
     const ids = (data || []).map((f) => f.follower_id);
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, name, avatar_url, occupation")
+      .select("id, name, avatar_url, occupation, username")
       .in("id", ids);
 
     const merged = (data || []).map((f) => ({
@@ -161,7 +162,7 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
     const userIds = (userData || []).map((f) => f.following_id);
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, name, avatar_url, occupation")
+      .select("id, name, avatar_url, occupation, username")
       .in("id", userIds);
 
     const mergedUsers = (userData || []).map((f) => ({
@@ -230,29 +231,7 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
       init();
     }
   }, [isOpen, userId, type, init]);
-
-  const toggleFollow = async (e, targetUserId) => {
-    e.stopPropagation();
-    if (!currentUser) return;
-    
-    if (myFollowing.includes(targetUserId)) {
-      await supabase.from("follows").delete().match({ follower_id: currentUser.id, following_id: targetUserId });
-      setMyFollowing(prev => prev.filter(id => id !== targetUserId));
-    } else {
-      await supabase.from("follows").insert({ follower_id: currentUser.id, following_id: targetUserId });
-      setMyFollowing(prev => [...prev, targetUserId]);
-      
-      await supabase.from("notifications").insert({
-        user_id: targetUserId,
-        type: 'follow',
-        from_user_id: currentUser.id,
-        message: 'started following you'
-      });
-    }
-  };
-
   const unfollowProject = async (e, projectId) => {
-    e.stopPropagation();
     if (!currentUser) return;
     await supabase.from("project_followers").delete().match({ user_id: currentUser.id, project_id: projectId });
     // Remove from UI only if we are viewing our own following list
@@ -285,24 +264,20 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
                   ) : (
                     <div className="grid-container">
                       {list.map((f, i) => (
-                        <div key={i} className="card-new" onClick={() => { onClose(); navigate("/profile/" + f.follower_id); }}>
-                          {f.profiles?.avatar_url ? (
-                            <img src={f.profiles.avatar_url} alt="avatar" style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px' }} />
-                          ) : (
-                            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#7C3AED', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 'bold', marginBottom: '12px' }}>
-                              {f.profiles?.name ? f.profiles.name.charAt(0).toUpperCase() : "U"}
-                            </div>
-                          )}
-                          <div style={{ fontWeight: '600', fontSize: '1rem' }}>{f.profiles?.name || "User"}</div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '4px' }}>{f.profiles?.occupation || "Member"}</div>
-                          {currentUser && currentUser.id !== f.follower_id && (
-                            <button 
-                              className={"action-btn " + (myFollowing.includes(f.follower_id) ? "unfollow-btn" : "")} 
-                              onClick={(e) => toggleFollow(e, f.follower_id)}
-                            >
-                              {myFollowing.includes(f.follower_id) ? "Unfollow" : "Follow"}
-                            </button>
-                          )}
+                        <div key={i} onClick={onClose}>
+                          <UserCard 
+                            user={f}
+                            currentUser={currentUser}
+                            variant="grid"
+                            initialIsFollowing={myFollowing.includes(f.follower_id)}
+                            onFollowToggle={(userId, isFollowing) => {
+                              if (isFollowing) {
+                                setMyFollowing(prev => [...prev, userId]);
+                              } else {
+                                setMyFollowing(prev => prev.filter(id => id !== userId));
+                              }
+                            }}
+                          />
                         </div>
                       ))}
                     </div>
@@ -318,24 +293,20 @@ export default function FollowModals({ isOpen, onClose, type, userId }) {
                   ) : (
                     <div className="grid-container">
                       {list.map((f, i) => (
-                        <div key={i} className="card-new" onClick={() => { onClose(); navigate("/profile/" + f.following_id); }}>
-                          {f.profiles?.avatar_url ? (
-                            <img src={f.profiles.avatar_url} alt="avatar" style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px' }} />
-                          ) : (
-                            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#7C3AED', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 'bold', marginBottom: '12px' }}>
-                              {f.profiles?.name ? f.profiles.name.charAt(0).toUpperCase() : "U"}
-                            </div>
-                          )}
-                          <div style={{ fontWeight: '600', fontSize: '1rem' }}>{f.profiles?.name || "User"}</div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '4px' }}>{f.profiles?.occupation || "Member"}</div>
-                          {currentUser && currentUser.id !== f.following_id && (
-                            <button 
-                              className={"action-btn " + (myFollowing.includes(f.following_id) ? "unfollow-btn" : "")} 
-                              onClick={(e) => toggleFollow(e, f.following_id)}
-                            >
-                              {myFollowing.includes(f.following_id) ? "Unfollow" : "Follow"}
-                            </button>
-                          )}
+                        <div key={i} onClick={onClose}>
+                          <UserCard 
+                            user={f}
+                            currentUser={currentUser}
+                            variant="grid"
+                            initialIsFollowing={myFollowing.includes(f.following_id)}
+                            onFollowToggle={(userId, isFollowing) => {
+                              if (isFollowing) {
+                                setMyFollowing(prev => [...prev, userId]);
+                              } else {
+                                setMyFollowing(prev => prev.filter(id => id !== userId));
+                              }
+                            }}
+                          />
                         </div>
                       ))}
                     </div>

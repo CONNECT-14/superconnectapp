@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import useAuth from "../hooks/useAuth";
+import useImageUpload from "../hooks/useImageUpload";
 import SkeletonLoader from "../components/SkeletonLoader";
 import BackgroundParticles from "../components/BackgroundParticles";
 import ErrorBoundary from "../components/ErrorBoundary";
-import imageCompression from 'browser-image-compression';
 
 const styles = `
 
@@ -378,7 +379,8 @@ const styles = `
 
 export default function ProjectHub() {
   const [projects, setProjects] = useState([]);
-  const [user, setUser] = useState(null); 
+  const { user } = useAuth(); 
+  const { upload: uploadImage } = useImageUpload("project-images");
   const [loading, setLoading] = useState(true);
   const [followStatus, setFollowStatus] = useState({}); // { [projectId]: boolean }
   const [followingProgress, setFollowingProgress] = useState({});
@@ -393,22 +395,19 @@ export default function ProjectHub() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    init();
+    if (user) {
+      init();
+    } else {
+      setLoading(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   const init = async () => {
     const start = Date.now();
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      setUser(user);
       if (user) {
         await fetchProjects(user, start);
-      } else {
-        const elapsed = Date.now() - start;
-        if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
-        setLoading(false);
       }
     } catch(err) {
       console.error(err);
@@ -492,25 +491,12 @@ export default function ProjectHub() {
     let imageUrl = null;
 
     if (newProject.imageFile) {
-      const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
-      let finalFile = newProject.imageFile;
-      try { finalFile = await imageCompression(newProject.imageFile, options); } catch(e) { console.error(e); }
-
-      const fileName = `covers-${Date.now()}-${finalFile.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("project-images")
-        .upload(fileName, finalFile);
-
-      if (uploadError) {
-        alert("Image upload failed: " + uploadError.message);
+      imageUrl = await uploadImage(newProject.imageFile, `covers-${Date.now()}-`);
+      if (!imageUrl) {
+        alert("Image upload failed");
         setIsCreating(false);
         return;
       }
-      
-      const { data } = supabase.storage
-        .from("project-images")
-        .getPublicUrl(fileName);
-      imageUrl = data.publicUrl;
     }
 
     const { error } = await supabase
@@ -618,7 +604,12 @@ export default function ProjectHub() {
                 
                 <p className="project-desc">{proj.description}</p>
 
-                <div className="project-owner" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '16px' }} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${proj.user_id}`); }}>
+                <Link 
+                  to={`/profile/${proj.profiles?.username || proj.user_id}`}
+                  className="project-owner" 
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '16px', textDecoration: 'none' }} 
+                  onClick={(e) => { e.stopPropagation(); }}
+                >
                   {proj.profiles?.avatar_url ? (
                     <img src={proj.profiles.avatar_url} alt="avatar" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
                   ) : (
@@ -627,7 +618,7 @@ export default function ProjectHub() {
                     </div>
                   )}
                   {proj.profiles?.name || "User"}
-                </div>
+                </Link>
 
                 {proj.user_id !== user?.id && (
                   <button

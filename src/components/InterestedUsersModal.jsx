@@ -299,18 +299,22 @@ export default function InterestedUsersModal({ collab, onClose, onCloseRequest }
 
                 return (
                   <div key={interest.id} className="iu-row">
-                    {/* AVATAR */}
-                    <div className="iu-avatar">
-                      {avatarUrl ? (
-                        <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        name.charAt(0).toUpperCase()
-                      )}
-                    </div>
-
-                    {/* INFO */}
-                    <div className="iu-info">
-                      <span className="iu-name">{name}</span>
+                    <div 
+                      style={{ display: 'flex', gap: '16px', alignItems: 'center', cursor: 'pointer', flex: 1, textDecoration: 'none', color: 'inherit' }}
+                      onClick={() => { onClose(); navigate(`/profile/${username || profile?.id}`); }}
+                    >
+                      {/* AVATAR */}
+                      <div className="iu-avatar">
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+  
+                      {/* INFO */}
+                      <div className="iu-info">
+                        <span className="iu-name">{name}</span>
                       {skills.length > 0 && (
                         <div className="iu-skills-row">
                           {skills.slice(0, 5).map(skill => (
@@ -321,6 +325,7 @@ export default function InterestedUsersModal({ collab, onClose, onCloseRequest }
                       {interest.message && (
                         <div className="iu-message">"{interest.message}"</div>
                       )}
+                    </div>
                     </div>
 
                     {/* ACTIONS */}
